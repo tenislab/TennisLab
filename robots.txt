@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://jrrjaime.github.io/TennisLab/sitemap.xml
+Sitemap: https://tenislab.github.io/TennisLab/sitemap.xml
