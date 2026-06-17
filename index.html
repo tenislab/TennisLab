@@ -1,68 +1,427 @@
-// ============================================================
-// Supabase Edge Function: stripe-webhook
-// Stripe avisa aquí cuando alguien paga / cancela. Marcamos
-// is_premium en la tabla user_state del usuario correspondiente.
-// ------------------------------------------------------------
-// Desplegar (sin verificación de JWT, la hace la firma de Stripe):
-//   supabase functions deploy stripe-webhook --no-verify-jwt
-// Secrets:
-//   STRIPE_SECRET_KEY        = sk_live_... / sk_test_...
-//   STRIPE_WEBHOOK_SECRET    = whsec_...   (lo da Stripe al crear el webhook)
-//   SUPABASE_URL             = (automático)
-//   SUPABASE_SERVICE_ROLE_KEY= service_role key (Settings → API)  ← NUNCA en el cliente
-// En Stripe → Developers → Webhooks → Add endpoint:
-//   URL:  https://<tu-proyecto>.supabase.co/functions/v1/stripe-webhook
-//   Eventos: checkout.session.completed, customer.subscription.deleted,
-//            customer.subscription.updated
-// ============================================================
-import Stripe from 'https://esm.sh/stripe@14?target=deno';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2023-10-16' });
-const WH_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+<!-- ===== SEO ===== -->
+<title>TennisLab — Crea y anima tus tácticas de tenis</title>
+<meta name="description" content="Pizarra táctica de tenis para jugadores, entrenadores y clubes. Crea jugadas, anímalas paso a paso, guarda rivales y partidos, y mejora tu juego. Pruébala gratis."/>
+<meta name="keywords" content="tácticas de tenis, pizarra táctica tenis, app entrenadores tenis, jugadas de tenis, scouting rival tenis, pista de tenis, estrategia tenis"/>
+<meta name="author" content="TennisLab"/>
+<meta name="robots" content="index, follow"/>
+<meta name="theme-color" content="#0F0E0D"/>
+<link rel="canonical" href="https://jrrjaime.github.io/TennisLab/"/>
+<link rel="icon" href="icon.svg" type="image/svg+xml"/>
 
-const admin = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,     // service role: salta RLS (solo en servidor)
-);
+<!-- Open Graph / redes -->
+<meta property="og:type" content="website"/>
+<meta property="og:locale" content="es_ES"/>
+<meta property="og:site_name" content="TennisLab"/>
+<meta property="og:title" content="TennisLab — Tus tácticas de tenis, vivas"/>
+<meta property="og:description" content="Crea, anima y comparte jugadas de tenis en segundos. Para jugadores, entrenadores y clubes."/>
+<meta property="og:url" content="https://jrrjaime.github.io/TennisLab/"/>
+<meta property="og:image" content="https://jrrjaime.github.io/TennisLab/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="TennisLab — Tus tácticas de tenis, vivas"/>
+<meta name="twitter:description" content="Crea, anima y comparte jugadas de tenis en segundos."/>
+<meta name="twitter:image" content="https://jrrjaime.github.io/TennisLab/og-image.png"/>
 
-async function setPremium(userId: string, on: boolean, extra: Record<string, unknown> = {}) {
-  if (!userId) return;
-  await admin.from('user_state')
-    .upsert({ user_id: userId, is_premium: on, updated_at: new Date().toISOString(), ...extra });
+<!-- Datos estructurados (Google) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "TennisLab",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Web",
+  "description": "Pizarra táctica de tenis para crear, animar y compartir jugadas, y gestionar rivales y partidos.",
+  "url": "https://jrrjaime.github.io/TennisLab/",
+  "image": "https://jrrjaime.github.io/TennisLab/og-image.png",
+  "inLanguage": "es",
+  "offers": [
+    {"@type":"Offer","price":"0","priceCurrency":"EUR","name":"Gratis"},
+    {"@type":"Offer","price":"2.99","priceCurrency":"EUR","name":"Premium mensual"},
+    {"@type":"Offer","price":"22.99","priceCurrency":"EUR","name":"Premium anual"}
+  ]
 }
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"¿Para quién es TennisLab?","acceptedAnswer":{"@type":"Answer","text":"Para jugadores que quieren preparar partidos, entrenadores que enseñan jugadas y clubes o academias que trabajan con varios jugadores."}},
+    {"@type":"Question","name":"¿Es gratis?","acceptedAnswer":{"@type":"Answer","text":"Sí, puedes empezar gratis. El plan Premium (2,99 €/mes o 22,99 €/año) desbloquea tácticas ilimitadas, exportar vídeo, informes PDF y sincronización en la nube."}},
+    {"@type":"Question","name":"¿Funciona en el móvil y la tablet?","acceptedAnswer":{"@type":"Answer","text":"Sí. Funciona en móvil, tablet y ordenador, y con una cuenta tus tácticas se sincronizan en todos tus dispositivos."}}
+  ]
+}
+</script>
 
-Deno.serve(async (req) => {
-  const sig = req.headers.get('stripe-signature')!;
-  const body = await req.text();
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(body, sig, WH_SECRET);
-  } catch (e) {
-    return new Response(`bad signature: ${e}`, { status: 400 });
-  }
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const s = event.data.object as Stripe.Checkout.Session;
-      const userId = (s.client_reference_id || s.metadata?.user_id) as string;
-      await setPremium(userId, true, {
-        stripe_customer_id: s.customer as string,
-        stripe_subscription_id: s.subscription as string,
-      });
-      break;
-    }
-    case 'customer.subscription.updated': {
-      const sub = event.data.object as Stripe.Subscription;
-      const active = sub.status === 'active' || sub.status === 'trialing';
-      await setPremium(sub.metadata?.user_id as string, active);
-      break;
-    }
-    case 'customer.subscription.deleted': {
-      const sub = event.data.object as Stripe.Subscription;
-      await setPremium(sub.metadata?.user_id as string, false);
-      break;
-    }
+<style>
+  :root{
+    --ink:#0F0E0D; --ink-2:#1A1715; --ink-3:#221E1A;
+    --line:rgba(255,236,222,.10); --line-2:rgba(255,236,222,.18);
+    --txt:#F6F1EB; --txt-2:#AEA298; --txt-3:#7A6F65;
+    --cl:#E8703D; --cl-2:#F26C36; --mint:#36D9B0; --lime:#D7F23A;
+    --head:'Archivo',sans-serif; --body:'Hanken Grotesk',sans-serif; --mono:'Space Mono',monospace;
+    --maxw:1140px; --r:16px; --r-l:22px;
   }
-  return new Response('ok', { status: 200 });
-});
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--ink);color:var(--txt);font-family:var(--body);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--cl);font-weight:700}
+  h1,h2,h3{font-family:var(--head);font-weight:900;letter-spacing:-.02em;line-height:.98;text-transform:uppercase}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--head);font-weight:800;text-transform:uppercase;letter-spacing:.01em;
+    font-size:15px;padding:14px 24px;border-radius:999px;border:1.5px solid transparent;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn-primary{background:var(--cl);color:#1A0F09}
+  .btn-primary:hover{background:var(--cl-2);transform:translateY(-2px)}
+  .btn-ghost{border-color:var(--line-2);color:var(--txt)}
+  .btn-ghost:hover{border-color:var(--cl);color:var(--cl)}
+  .btn-lg{font-size:17px;padding:17px 30px}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(15,14,13,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:16px;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--head);font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:-.01em}
+  .brand svg{width:30px;height:30px;flex:none}
+  .nav-links{display:flex;gap:26px;margin-left:24px}
+  .nav-links a{font-size:14px;color:var(--txt-2);font-weight:600}
+  .nav-links a:hover{color:var(--txt)}
+  .nav-cta{margin-left:auto;display:flex;gap:10px;align-items:center}
+  @media(max-width:780px){.nav-links{display:none}}
+
+  /* hero */
+  .hero{position:relative;padding:clamp(48px,8vw,96px) 0 clamp(40px,6vw,72px);overflow:hidden}
+  .hero::before{content:"";position:absolute;right:-10%;top:-20%;width:680px;height:680px;border-radius:50%;
+    background:radial-gradient(circle,rgba(232,112,61,.22),transparent 62%);pointer-events:none}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,56px);align-items:center;position:relative}
+  .hero h1{font-size:clamp(40px,7.5vw,76px);margin:18px 0}
+  .hero h1 .o{color:var(--cl)}
+  .hero p.lead{font-size:clamp(17px,2.2vw,21px);color:var(--txt-2);max-width:46ch;margin-bottom:26px}
+  .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
+  .hero-note{margin-top:16px;font-size:13px;color:var(--txt-3);display:flex;align-items:center;gap:8px}
+  .hero-note b{color:var(--mint)}
+
+  /* court visual */
+  .court-card{position:relative;border-radius:var(--r-l);overflow:hidden;border:1px solid var(--line-2);background:#0c0b0a;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.8);aspect-ratio:4/5}
+  .court-card svg{width:100%;height:100%;display:block}
+  .court-badge{position:absolute;top:14px;left:14px;font-family:var(--mono);font-size:11px;color:var(--mint);
+    border:1px solid rgba(54,217,176,.4);background:rgba(54,217,176,.12);padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:6px}
+  .court-badge i{width:7px;height:7px;border-radius:50%;background:var(--mint);animation:bp 1.8s infinite}
+  @keyframes bp{0%,100%{opacity:1}50%{opacity:.25}}
+  .court-score{position:absolute;top:14px;right:14px;font-family:var(--mono);font-weight:700;font-size:14px;
+    background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);padding:5px 11px;border-radius:8px}
+
+  /* stats strip */
+  .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--ink-2)}
+  .strip-in{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:26px 0}
+  .strip .s b{font-family:var(--mono);font-weight:700;font-size:clamp(24px,3vw,32px);color:var(--txt);display:block}
+  .strip .s span{font-size:12px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em}
+  @media(max-width:620px){.strip-in{grid-template-columns:repeat(2,1fr)}}
+
+  /* sections */
+  section.blk{padding:clamp(56px,8vw,96px) 0}
+  .sec-head{max-width:620px;margin-bottom:42px}
+  .sec-head h2{font-size:clamp(28px,4.4vw,44px);margin:12px 0}
+  .sec-head p{color:var(--txt-2);font-size:17px}
+
+  /* features */
+  .feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .feat{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);padding:26px;transition:.15s}
+  .feat:hover{border-color:var(--line-2);transform:translateY(-3px)}
+  .feat .ic{width:46px;height:46px;border-radius:12px;background:var(--ink-3);color:var(--cl);display:grid;place-items:center;margin-bottom:16px}
+  .feat .ic svg{width:24px;height:24px}
+  .feat h3{font-size:19px;margin-bottom:8px;text-transform:none;letter-spacing:0;font-weight:800}
+  .feat p{color:var(--txt-2);font-size:15px}
+  @media(max-width:680px){.feat-grid{grid-template-columns:1fr}}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
+  .step{position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);padding:28px 24px}
+  .step::before{counter-increment:s;content:counter(s,decimal-leading-zero);font-family:var(--mono);font-weight:700;font-size:13px;color:var(--cl);display:block;margin-bottom:14px}
+  .step h3{font-size:18px;text-transform:none;letter-spacing:0;font-weight:800;margin-bottom:8px}
+  .step p{color:var(--txt-2);font-size:15px}
+  @media(max-width:680px){.steps{grid-template-columns:1fr}}
+
+  /* pricing */
+  .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:760px;margin:0 auto}
+  .plan{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-l);padding:30px}
+  .plan.pro{border-color:var(--cl);position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--cl) 12%,var(--ink-2)),var(--ink-2))}
+  .plan-tag{position:absolute;top:-12px;left:30px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;
+    background:var(--cl);color:#1A0F09;padding:4px 11px;border-radius:999px}
+  .plan h3{font-size:15px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.06em}
+  .plan .amt{font-family:var(--head);font-weight:900;font-size:46px;margin:10px 0 2px}
+  .plan .amt small{font-family:var(--mono);font-size:14px;color:var(--txt-3);font-weight:400}
+  .plan .yr{font-size:13px;color:var(--txt-3);margin-bottom:18px}
+  .plan ul{list-style:none;margin:18px 0 24px;display:flex;flex-direction:column;gap:11px}
+  .plan li{display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--txt)}
+  .plan li svg{width:18px;height:18px;color:var(--mint);flex:none;margin-top:2px}
+  .plan li.off{color:var(--txt-3)}
+  .plan li.off svg{color:var(--txt-3)}
+  .plan .btn{width:100%;justify-content:center}
+  @media(max-width:620px){.price-grid{grid-template-columns:1fr}}
+
+  /* faq */
+  .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+  details{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);padding:4px 20px}
+  details[open]{border-color:var(--line-2)}
+  summary{cursor:pointer;list-style:none;padding:18px 0;font-family:var(--head);font-weight:800;font-size:17px;display:flex;justify-content:space-between;align-items:center;text-transform:none;letter-spacing:0}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-family:var(--mono);color:var(--cl);font-size:22px}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--txt-2);font-size:15px;padding:0 0 18px}
+
+  /* final cta */
+  .final{text-align:center;background:linear-gradient(180deg,var(--ink),var(--ink-2))}
+  .final h2{font-size:clamp(30px,5vw,52px);margin-bottom:14px}
+  .final p{color:var(--txt-2);font-size:18px;margin-bottom:28px}
+
+  /* footer */
+  footer{border-top:1px solid var(--line);padding:40px 0;color:var(--txt-3);font-size:14px}
+  .foot-in{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+  .foot-links{display:flex;gap:20px;flex-wrap:wrap}
+  .foot-links a:hover{color:var(--txt)}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:.6s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media(max-width:880px){.hero-grid{grid-template-columns:1fr}.court-card{max-width:360px;margin:0 auto}}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}.court-badge i{animation:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="9" y="5" width="12" height="20" rx="1.6" fill="none" stroke="#E8703D" stroke-width="1.8"/><line x1="9" y1="15" x2="21" y2="15" stroke="#E8703D" stroke-width="1.8"/><line x1="15" y1="5" x2="15" y2="25" stroke="#E8703D" stroke-width="1.2" opacity=".6"/></svg>
+      Tennis Lab
+    </a>
+    <div class="nav-links">
+      <a href="#features">Funciones</a>
+      <a href="#how">Cómo va</a>
+      <a href="#pricing">Precios</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="app.html">Entrar</a>
+      <a class="btn btn-primary" href="app.html">Probar gratis</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="kicker">Pizarra táctica de tenis</span>
+      <h1>Tus tácticas<br/>de tenis, <span class="o">vivas</span></h1>
+      <p class="lead">Dibuja una jugada, dale al play y mírala moverse como en un partido real. Guarda rivales, prepara partidos y mejora con datos. En tu móvil, tablet y ordenador.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="app.html">Empezar gratis</a>
+        <a class="btn btn-ghost btn-lg" href="#how">Ver cómo funciona</a>
+      </div>
+      <div class="hero-note">✓ <span>7 días de Premium gratis ·</span> <b>sin compromiso</b></div>
+    </div>
+    <div class="court-card" aria-label="Pista de tenis con una jugada animada">
+      <span class="court-badge"><i></i>EN VIVO</span>
+      <span class="court-score" id="score">0 — 0</span>
+      <svg id="court" viewBox="0 0 300 375" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap strip-in">
+    <div class="s"><b>4</b><span>superficies</span></div>
+    <div class="s"><b>∞</b><span>jugadas</span></div>
+    <div class="s"><b>3</b><span>dispositivos</span></div>
+    <div class="s"><b>0 €</b><span>para empezar</span></div>
+  </div>
+</div>
+
+<section class="blk" id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">Qué puedes hacer</span>
+      <h2>Todo tu juego, en una app</h2>
+      <p>Diseñada para jugadores, entrenadores y clubes que quieren entrenar la cabeza, no solo el brazo.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Jugadas animadas</h3>
+        <p>Coloca jugadores y bola, dibuja trayectorias y reprodúcelo con la bola acelerando y frenando como de verdad.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+        <h3>Rivales y scouting</h3>
+        <p>Guarda los puntos fuertes y débiles de cada rival, su historial y qué táctica te funciona contra él.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3"/></svg></div>
+        <h3>Partidos y estadísticas</h3>
+        <p>Registra resultados y descubre tu % de victorias por superficie, club y torneo. Tu mejor y peor pista, a la vista.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div>
+        <h3>Comparte y presenta</h3>
+        <p>Exporta a imagen, vídeo o PDF, y usa el modo presentación a pantalla completa para enseñarla en la pista.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="how" style="background:var(--ink-2)">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">En 3 pasos</span>
+      <h2>Así de fácil</h2>
+      <p>De la idea a la jugada animada en menos de un minuto.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><h3>Coloca</h3><p>Elige superficie y arrastra jugadores y bola sobre la pista.</p></div>
+      <div class="step reveal"><h3>Anima</h3><p>Dibuja la trayectoria de cada golpe y pulsa play para verla en movimiento.</p></div>
+      <div class="step reveal"><h3>Guarda y comparte</h3><p>Guárdala en la nube, organízala en carpetas y compártela con quien quieras.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="pricing">
+  <div class="wrap">
+    <div class="sec-head reveal" style="margin-left:auto;margin-right:auto;text-align:center">
+      <span class="kicker">Precios</span>
+      <h2>Empieza gratis. Sube cuando quieras.</h2>
+    </div>
+    <div class="price-grid">
+      <div class="plan reveal">
+        <h3>Gratis</h3>
+        <div class="amt">0 €</div>
+        <div class="yr">Para siempre</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Hasta 5 tácticas</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Editor y animación completos</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Rivales y partidos básicos</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Exportar a imagen</li>
+        </ul>
+        <a class="btn btn-ghost" href="app.html">Empezar gratis</a>
+      </div>
+      <div class="plan pro reveal">
+        <span class="plan-tag">RECOMENDADO</span>
+        <h3>Premium</h3>
+        <div class="amt">2,99 €<small>/mes</small></div>
+        <div class="yr">7 días gratis · o 22,99 €/año (ahorras 2 meses)</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg><b>Tácticas ilimitadas</b></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Exportar vídeo + informes PDF</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Estadísticas avanzadas</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Nube en todos tus dispositivos</li>
+        </ul>
+        <a class="btn btn-primary" href="app.html">Probar 7 días gratis</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="faq" style="background:var(--ink-2)">
+  <div class="wrap">
+    <div class="sec-head reveal" style="margin-left:auto;margin-right:auto;text-align:center">
+      <span class="kicker">Dudas</span>
+      <h2>Preguntas frecuentes</h2>
+    </div>
+    <div class="faq">
+      <details class="reveal"><summary>¿Para quién es?</summary><p>Para jugadores que preparan sus partidos, entrenadores que enseñan jugadas y clubes o academias que trabajan con varios jugadores.</p></details>
+      <details class="reveal"><summary>¿Necesito saber de tecnología?</summary><p>No. Arrastras jugadores y bola sobre la pista, dibujas la jugada y pulsas play. Tan fácil como una pizarra, pero animada.</p></details>
+      <details class="reveal"><summary>¿Funciona en el móvil?</summary><p>Sí, en móvil, tablet y ordenador. Con una cuenta, tus tácticas se sincronizan automáticamente en todos tus dispositivos.</p></details>
+      <details class="reveal"><summary>¿Qué incluye el plan gratis?</summary><p>El editor y la animación completos, hasta 5 tácticas, rivales y partidos básicos, y exportar a imagen. Premium quita el límite y añade vídeo, PDF y nube.</p></details>
+      <details class="reveal"><summary>¿Puedo cancelar cuando quiera?</summary><p>Sí. Premium incluye 7 días de prueba gratis y puedes cancelar en cualquier momento; durante la prueba no se te cobra nada.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="blk final">
+  <div class="wrap">
+    <span class="kicker reveal">Tu próxima victoria empieza aquí</span>
+    <h2 class="reveal">¿Listo para entrenar la cabeza?</h2>
+    <p class="reveal">Crea tu primera táctica gratis en menos de un minuto.</p>
+    <a class="btn btn-primary btn-lg reveal" href="app.html">Empezar gratis</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <div>© <span id="yr"></span> TennisLab</div>
+    <div class="foot-links">
+      <a href="privacidad.html">Privacidad</a>
+      <a href="terminos.html">Términos</a>
+      <a href="mailto:soporte.tennislab@gmail.com">Contacto</a>
+      <a href="app.html">Entrar a la app</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // reveal on scroll
+  const io = new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // mini live-match animation on the hero court
+  (function(){
+    const svg=document.getElementById('court'); if(!svg) return;
+    const W=300,H=375, cx=W/2, net=H/2, top=40, bot=H-40;
+    const ln='stroke="rgba(246,241,235,.55)" stroke-width="1.4" fill="none"';
+    let s=`<rect width="${W}" height="${H}" fill="#A8512E"/>`;
+    s+=`<rect x="34" y="${top}" width="${W-68}" height="${H-2*top}" fill="#C4663E"/>`;
+    s+=`<rect x="48" y="${top}" width="${W-96}" height="${H-2*top}" ${ln}/>`;
+    s+=`<line x1="34" y1="${net}" x2="${W-34}" y2="${net}" stroke="#F2E6DC" stroke-width="2"/>`;
+    s+=`<line x1="${cx}" y1="${top}" x2="${cx}" y2="${top+70}" ${ln}/>`;
+    s+=`<line x1="${cx}" y1="${bot-70}" x2="${cx}" y2="${bot}" ${ln}/>`;
+    s+=`<line x1="48" y1="${top+70}" x2="${W-48}" y2="${top+70}" ${ln}/>`;
+    s+=`<line x1="48" y1="${bot-70}" x2="${W-48}" y2="${bot-70}" ${ln}/>`;
+    s+=`<g id="own"><circle cx="${cx-22}" cy="${bot-16}" r="13" fill="#D7F23A" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx-22}" y="${bot-11}" font-size="12" font-family="monospace" font-weight="700" fill="#1A1E12" text-anchor="middle">J1</text></g>`;
+    s+=`<g id="riv"><circle cx="${cx+22}" cy="${top+16}" r="13" fill="#FF5B5B" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx+22}" y="${top+21}" font-size="12" font-family="monospace" font-weight="700" fill="#fff" text-anchor="middle">R1</text></g>`;
+    s+=`<circle id="ball" cx="${cx-22}" cy="${bot-22}" r="7" fill="#fff"/>`;
+    svg.innerHTML=s;
+    const ball=svg.querySelector('#ball'), own=svg.querySelector('#own'), riv=svg.querySelector('#riv'), score=document.getElementById('score');
+    const P=(x,y)=>({x,y});
+    const rallies=[
+      {s:[P(cx-22,bot-22),P(cx-60,top+40),P(cx+60,bot-30),P(cx-70,top+60),P(cx+74,bot-70)],w:'own'},
+      {s:[P(cx+22,top+22),P(cx+60,bot-40),P(cx-60,top+30),P(cx+70,bot-50)],w:'riv'},
+      {s:[P(cx-22,bot-22),P(cx,top+30),P(cx,bot-30),P(cx+74,top+44)],w:'own'},
+      {s:[P(cx+30,top+18),P(cx-70,bot-30),P(cx+40,top+70),P(cx-80,bot-90)],w:'riv'},
+      {s:[P(cx-30,bot-18),P(cx+70,top+30),P(cx-30,bot-60),P(cx+80,top+74)],w:'own'},
+    ];
+    function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+    let order=shuffle([...rallies.keys()]), oi=0, so=0, sr=0, segs=[], si=0, t0=null, phase='play', cur=null, raf=null;
+    const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+    const setG=(g,X,Y)=>{const c=g.querySelector('circle'),t=g.querySelector('text');c.setAttribute('cx',X);c.setAttribute('cy',Y);if(t){t.setAttribute('x',X);t.setAttribute('y',Y+5);}};
+    function start(){cur=rallies[order[oi]];segs=[];for(let i=1;i<cur.s.length;i++)segs.push([cur.s[i-1],cur.s[i]]);si=0;t0=null;phase='play';const f=cur.s[0];ball.setAttribute('cx',f.x);ball.setAttribute('cy',f.y);ball.style.opacity=1;score.textContent=so+' — '+sr;}
+    function frame(ts){
+      if(t0===null)t0=ts;
+      if(phase==='play'){
+        const sg=segs[si],e=Math.min(1,(ts-t0)/1000),k=ease(e);
+        const X=sg[0].x+(sg[1].x-sg[0].x)*k,Y=sg[0].y+(sg[1].y-sg[0].y)*k;
+        ball.setAttribute('cx',X);ball.setAttribute('cy',Y);
+        const recv=sg[1].y>net?own:riv,ry=sg[1].y>net?bot-16:top+16;
+        const rc=recv.querySelector('circle'),px=+rc.getAttribute('cx');setG(recv,px+(sg[1].x-px)*.12,ry);
+        if(e>=1){si++;t0=ts;if(si>=segs.length){phase='pt';t0=ts;if(cur.w==='own')so++;else sr++;if(so>5||sr>5){so=0;sr=0;}ball.style.opacity=.25;score.textContent=so+' — '+sr;}}
+      }else if(ts-t0>1100){oi=(oi+1)%order.length;if(oi===0)order=shuffle(order);start();}
+      raf=requestAnimationFrame(frame);
+    }
+    const mq=window.matchMedia('(prefers-reduced-motion: reduce)');
+    start();
+    if(!mq.matches) raf=requestAnimationFrame(frame);
+  })();
+</script>
+</body>
+</html>
