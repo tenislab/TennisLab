@@ -1,0 +1,52 @@
+-- ============================================================
+-- TennisLab — esquema Supabase (modelo "snapshot")
+-- Ejecutar en: Supabase Dashboard → SQL Editor → New query → Run
+-- Cada usuario tiene UNA fila con todos sus datos en JSON + premium.
+-- RLS: cada usuario solo accede a lo suyo.
+-- ============================================================
+
+create table if not exists public.user_state (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  data       jsonb not null default '{}'::jsonb,   -- snapshot de la app (tácticas, partidos, rivales…)
+  is_premium boolean not null default false,        -- lo activa el webhook de Stripe (o tú a mano)
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  stripe_customer_id text,
+  stripe_subscription_id text
+);
+
+-- Seguridad: cada usuario solo su fila
+alter table public.user_state enable row level security;
+
+drop policy if exists "own state" on public.user_state;
+create policy "own state" on public.user_state
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Al registrarse un usuario, crear su fila automáticamente
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.user_state (user_id) values (new.id)
+  on conflict (user_id) do nothing;
+  return new;
+end; $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ============================================================
+-- DESPUÉS de registrarte con tu email en la app, ejecuta esto
+-- UNA vez para darte Premium gratis (cuenta admin):
+--
+--   update public.user_state set is_premium = true
+--   where user_id = (select id from auth.users
+--                    where email = 'soporte.tennislab@gmail.com');
+--
+-- ============================================================
+-- NOTA sobre confirmación de email:
+-- Para que el login funcione al instante durante pruebas,
+-- en Authentication → Providers → Email, desactiva "Confirm email".
+-- (En producción puedes volver a activarlo.)
+-- ============================================================

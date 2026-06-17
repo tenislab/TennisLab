@@ -1,0 +1,260 @@
+/* ============================================================
+   club.js — MODO CLUB (entrenador + jugadores, biblioteca compartida)
+   ------------------------------------------------------------
+   Requiere TL.cloud (Supabase) con sesión iniciada y las tablas de
+   supabase/club_schema.sql ejecutadas. Es función PREMIUM.
+
+   Vista principal: TL.club.open() — muestra tu club (o crear/unirse),
+   la biblioteca compartida y, si eres entrenador, la lista de jugadores.
+   ============================================================ */
+(function (TL) {
+  const t = (k) => TL.i18n.t(k);
+  const ic = TL.icon;
+  const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function db() { return TL.cloud && TL.cloud.client; }
+  function uid() { return TL.cloud && TL.cloud.user ? TL.cloud.user.id : null; }
+
+  const club = {
+    current: null,     // {id,name,invite_code,owner_id}
+    role: null,        // 'coach' | 'player'
+
+    available() { return !!(TL.cloud && TL.cloud.enabled); },
+    ready() { return this.available() && TL.cloud.loggedIn(); },
+
+    genCode() {
+      const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let s = ''; for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random() * a.length)];
+      return s;
+    },
+
+    // cargar el club del usuario (si pertenece a alguno)
+    async load() {
+      if (!this.ready()) return null;
+      try {
+        const { data: mem } = await db().from('club_members')
+          .select('club_id, role').eq('user_id', uid()).limit(1).maybeSingle();
+        if (!mem) { this.current = null; this.role = null; return null; }
+        const { data: c } = await db().from('clubs').select('*').eq('id', mem.club_id).maybeSingle();
+        this.current = c; this.role = mem.role;
+        return c;
+      } catch (e) { console.warn('club load', e); return null; }
+    },
+
+    async createClub(name) {
+      if (!this.ready()) return { error: 'auth' };
+      const code = this.genCode();
+      const { data, error } = await db().from('clubs')
+        .insert({ owner_id: uid(), name, invite_code: code }).select().maybeSingle();
+      if (error) return { error: error.message };
+      this.current = data; this.role = 'coach';
+      return { ok: true };
+    },
+
+    async joinClub(code) {
+      if (!this.ready()) return { error: 'auth' };
+      const { data: c, error } = await db().from('clubs')
+        .select('*').eq('invite_code', (code || '').trim().toUpperCase()).maybeSingle();
+      if (error || !c) return { error: t('club_not_found') };
+      const { error: e2 } = await db().from('club_members')
+        .insert({ club_id: c.id, user_id: uid(), email: TL.cloud.email(), role: 'player' });
+      if (e2 && !/duplicate|conflict/i.test(e2.message)) return { error: e2.message };
+      this.current = c; this.role = 'player';
+      return { ok: true };
+    },
+
+    async leaveClub() {
+      if (!this.current) return;
+      await db().from('club_members').delete().eq('club_id', this.current.id).eq('user_id', uid());
+      this.current = null; this.role = null;
+    },
+
+    async members() {
+      if (!this.current) return [];
+      const { data } = await db().from('club_members')
+        .select('user_id,email,role,joined_at').eq('club_id', this.current.id);
+      return data || [];
+    },
+
+    async sharedTactics() {
+      if (!this.current) return [];
+      const { data } = await db().from('club_tactics')
+        .select('id,name,data,author_id,updated_at').eq('club_id', this.current.id)
+        .order('updated_at', { ascending: false });
+      return data || [];
+    },
+
+    // entrenador: publicar una táctica propia al club
+    async share(tac) {
+      if (!this.current) return { error: 'no club' };
+      const copy = JSON.parse(JSON.stringify(tac)); delete copy.id; delete copy.fav;
+      const { error } = await db().from('club_tactics')
+        .insert({ club_id: this.current.id, author_id: uid(), name: tac.name || '', data: copy });
+      if (error) return { error: error.message };
+      return { ok: true };
+    },
+
+    async unshare(id) {
+      await db().from('club_tactics').delete().eq('id', id);
+    },
+
+    // jugador: copiar una táctica del club a su biblioteca personal
+    importToMine(row) {
+      const tac = JSON.parse(JSON.stringify(row.data));
+      tac.id = TL.store.uid();
+      tac.name = (row.name || tac.name || '') + ' ' + (TL.i18n.lang === 'en' ? '(club)' : '(club)');
+      tac.createdAt = tac.updatedAt = Date.now();
+      const list = TL.store.loadAll(); list.unshift(tac); TL.store.saveAll(list);
+      return tac;
+    },
+
+    // ---------- UI ----------
+    host() { let h = document.getElementById('modal-host'); if (!h) { h = document.createElement('div'); h.id = 'modal-host'; document.body.appendChild(h); } return h; },
+    close() { this.host().innerHTML = ''; },
+
+    async open() {
+      // requisitos: premium + sesión
+      if (TL.premium && !TL.premium.isPremium()) { TL.premium.upgrade('club'); return; }
+      if (!this.ready()) { TL.app.toast(t('club_need_login')); if (TL.cloud.authModal) TL.cloud.authModal(); return; }
+      this.host().innerHTML = `<div class="modal-scrim" id="ms"><div class="modal club-modal"><div class="club-loading">${t('loading')||'…'}</div></div></div>`;
+      await this.load();
+      this.draw();
+    },
+
+    draw() {
+      const en = TL.i18n.lang === 'en';
+      let body;
+      if (!this.current) {
+        body = `
+          <div class="club-hero">
+            <span class="club-ic">${ic.users || ic.user}</span>
+            <h2>${t('club_title')}</h2>
+            <p>${en ? 'Train as a team. Coaches share tactics with all their players.' : 'Entrena en equipo. El entrenador comparte tácticas con todos sus jugadores.'}</p>
+          </div>
+          <div class="club-two">
+            <div class="club-card">
+              <h3>${t('club_create')}</h3>
+              <p>${en ? 'You are a coach' : 'Eres entrenador'}</p>
+              <input id="club-name" placeholder="${t('club_name_ph')}"/>
+              <button class="btn btn-primary" id="club-create-btn">${t('club_create')}</button>
+            </div>
+            <div class="club-card">
+              <h3>${t('club_join')}</h3>
+              <p>${en ? 'You are a player' : 'Eres jugador'}</p>
+              <input id="club-code" placeholder="${t('club_code_ph')}" style="text-transform:uppercase"/>
+              <button class="btn btn-line" id="club-join-btn">${t('club_join')}</button>
+            </div>
+          </div>`;
+      } else {
+        const coach = this.role === 'coach';
+        body = `
+          <div class="club-head2">
+            <div>
+              <span class="kicker">${coach ? t('club_role_coach') : t('club_role_player')}</span>
+              <h2>${esc(this.current.name)}</h2>
+            </div>
+            ${coach ? `<div class="club-code-box"><span>${t('club_code')}</span><b id="club-code-val">${esc(this.current.invite_code)}</b><button class="btn btn-ghost btn-sm" id="club-copy">${t('copy')||'Copiar'}</button></div>` : ''}
+          </div>
+          <div class="club-section">
+            <div class="club-sec-head"><h3>${t('club_shared')}</h3>${coach ? `<button class="btn btn-primary btn-sm" id="club-share">${ic.plus}${t('club_share_tactic')}</button>` : ''}</div>
+            <div id="club-tactics" class="club-tac-list"><div class="club-loading">…</div></div>
+          </div>
+          ${coach ? `<div class="club-section"><div class="club-sec-head"><h3>${t('club_players')}</h3></div><div id="club-members" class="club-mem-list"></div></div>` : ''}
+          <div class="club-foot"><button class="btn btn-ghost btn-sm" id="club-leave">${t('club_leave')}</button></div>`;
+      }
+      this.host().innerHTML = `<div class="modal-scrim" id="ms"><div class="modal club-modal">
+        <div class="modal-head"><h2>${t('club_title')}</h2><button class="x" id="mx">${ic.x}</button></div>
+        <div class="modal-body">${body}</div></div></div>`;
+      this.bind();
+      if (this.current) { this.fillTactics(); if (this.role === 'coach') this.fillMembers(); }
+    },
+
+    bind() {
+      const h = this.host();
+      h.querySelector('#mx').onclick = () => this.close();
+      h.querySelector('#ms').onclick = e => { if (e.target.id === 'ms') this.close(); };
+      const cb = h.querySelector('#club-create-btn');
+      if (cb) cb.onclick = async () => {
+        const name = h.querySelector('#club-name').value.trim();
+        if (!name) { TL.app.toast(t('club_name_ph')); return; }
+        cb.disabled = true;
+        const r = await this.createClub(name);
+        if (r.error) { TL.app.toast(r.error); cb.disabled = false; return; }
+        TL.app.toast(t('club_created'), true); this.draw();
+      };
+      const jb = h.querySelector('#club-join-btn');
+      if (jb) jb.onclick = async () => {
+        const code = h.querySelector('#club-code').value.trim();
+        if (!code) { TL.app.toast(t('club_code_ph')); return; }
+        jb.disabled = true;
+        const r = await this.joinClub(code);
+        if (r.error) { TL.app.toast(r.error); jb.disabled = false; return; }
+        TL.app.toast(t('club_joined'), true); this.draw();
+      };
+      const cp = h.querySelector('#club-copy');
+      if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(this.current.invite_code); TL.app.toast(t('copied') || 'Copiado', true); } catch (e) {} };
+      const sh = h.querySelector('#club-share');
+      if (sh) sh.onclick = () => this.pickToShare();
+      const lv = h.querySelector('#club-leave');
+      if (lv) lv.onclick = async () => {
+        if (!confirm(t('club_leave_confirm'))) return;
+        await this.leaveClub(); TL.app.toast(t('club_left')); this.draw();
+      };
+    },
+
+    async fillTactics() {
+      const box = this.host().querySelector('#club-tactics'); if (!box) return;
+      const rows = await this.sharedTactics();
+      const coach = this.role === 'coach';
+      if (!rows.length) { box.innerHTML = `<div class="club-empty">${t('club_no_tactics')}</div>`; return; }
+      box.innerHTML = rows.map(r => `
+        <div class="club-tac" data-id="${r.id}">
+          <div class="club-tac-tt"><b>${esc(r.name || t('untitled'))}</b><span>${(r.data && r.data.steps ? r.data.steps.length : 0)} ${TL.i18n.lang === 'en' ? 'steps' : 'pasos'}</span></div>
+          <div class="club-tac-act">
+            <button class="btn btn-line btn-sm act-import">${ic.copy || ''}${t('club_import')}</button>
+            ${coach ? `<button class="btn btn-ghost btn-sm act-unshare" title="${t('delete')}">${ic.trash}</button>` : ''}
+          </div>
+        </div>`).join('');
+      box.querySelectorAll('.club-tac').forEach(el => {
+        const row = rows.find(r => r.id === el.dataset.id);
+        el.querySelector('.act-import').onclick = () => { this.importToMine(row); TL.app.toast(t('club_imported'), true); };
+        const un = el.querySelector('.act-unshare');
+        if (un) un.onclick = async () => { await this.unshare(row.id); this.fillTactics(); };
+      });
+    },
+
+    async fillMembers() {
+      const box = this.host().querySelector('#club-members'); if (!box) return;
+      const mem = await this.members();
+      box.innerHTML = mem.map(m => `
+        <div class="club-mem">
+          <span class="club-mem-av">${esc((m.email || '?').slice(0, 1).toUpperCase())}</span>
+          <span class="club-mem-tx">${esc(m.email || '—')}</span>
+          <span class="club-mem-role ${m.role}">${m.role === 'coach' ? t('club_role_coach') : t('club_role_player')}</span>
+        </div>`).join('');
+    },
+
+    pickToShare() {
+      const all = TL.store.loadAll();
+      if (!all.length) { TL.app.toast(t('no_tactics_yet')); return; }
+      const h = this.host();
+      const opts = all.map(tc => `<option value="${tc.id}">${esc(tc.name || t('untitled'))}</option>`).join('');
+      const ov = document.createElement('div');
+      ov.className = 'modal-scrim'; ov.id = 'ms2';
+      ov.innerHTML = `<div class="modal"><div class="modal-head"><h2>${t('club_share_tactic')}</h2><button class="x" id="mx2">${ic.x}</button></div>
+        <div class="modal-body"><div class="field"><label>${t('sec_tactics')}</label><select id="share-sel">${opts}</select></div></div>
+        <div class="modal-foot"><button class="btn btn-ghost" id="share-cancel">${t('cancel')}</button><button class="btn btn-primary" id="share-go">${t('club_share_tactic')}</button></div></div>`;
+      document.body.appendChild(ov);
+      const done = () => ov.remove();
+      ov.querySelector('#mx2').onclick = done; ov.querySelector('#share-cancel').onclick = done;
+      ov.onclick = e => { if (e.target.id === 'ms2') done(); };
+      ov.querySelector('#share-go').onclick = async () => {
+        const tac = all.find(x => x.id === ov.querySelector('#share-sel').value);
+        const r = await this.share(tac); done();
+        if (r && r.error) TL.app.toast(r.error); else { TL.app.toast(t('club_shared_ok'), true); this.fillTactics(); }
+      };
+    },
+  };
+
+  TL.club = club;
+})(window.TL = window.TL || {});
