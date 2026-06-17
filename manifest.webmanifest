@@ -1,6 +1,6 @@
 {
-  "name": "TennisLab",
-  "short_name": "TennisLab",
+  "name": "CourtLab",
+  "short_name": "CourtLab",
   "description": "Pizarra táctica de tenis: crea, anima y comparte jugadas.",
   "start_url": ".",
   "display": "standalone",
