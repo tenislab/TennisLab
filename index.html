@@ -5,29 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
 <!-- ===== SEO ===== -->
-<title>CourtLab — Crea y anima tus tácticas de tenis</title>
+<title>CourtLab — Crea y anima tus tácticas de tenis y pádel</title>
 <meta name="description" content="Pizarra táctica de tenis y pádel para jugadores, entrenadores y clubes. Crea jugadas, anímalas paso a paso, guarda rivales y partidos, y mejora tu juego. Pruébala gratis."/>
 <meta name="keywords" content="tácticas de tenis y pádel, pizarra táctica, padel, app entrenadores tenis, jugadas de tenis, scouting rival tenis, pista de tenis, estrategia tenis"/>
 <meta name="author" content="CourtLab"/>
 <meta name="robots" content="index, follow"/>
 <meta name="theme-color" content="#0F0E0D"/>
-<link rel="canonical" href="https://tenislab.github.io/CourtLab/"/>
+<link rel="canonical" href="https://tenislab.github.io/TennisLab/"/>
 <link rel="icon" href="icon.svg" type="image/svg+xml"/>
 
 <!-- Open Graph / redes -->
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="es_ES"/>
 <meta property="og:site_name" content="CourtLab"/>
-<meta property="og:title" content="CourtLab — Tus tácticas de tenis, vivas"/>
-<meta property="og:description" content="Crea, anima y comparte jugadas de tenis en segundos. Para jugadores, entrenadores y clubes."/>
-<meta property="og:url" content="https://tenislab.github.io/CourtLab/"/>
-<meta property="og:image" content="https://tenislab.github.io/CourtLab/og-image.png"/>
+<meta property="og:title" content="CourtLab — Tus tácticas de tenis y pádel, vivas"/>
+<meta property="og:description" content="Crea, anima y comparte jugadas de tenis y pádel en segundos. Para jugadores, entrenadores y clubes."/>
+<meta property="og:url" content="https://tenislab.github.io/TennisLab/"/>
+<meta property="og:image" content="https://tenislab.github.io/TennisLab/og-image.png"/>
 <meta property="og:image:width" content="1200"/>
 <meta property="og:image:height" content="630"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="CourtLab — Tus tácticas de tenis, vivas"/>
-<meta name="twitter:description" content="Crea, anima y comparte jugadas de tenis en segundos."/>
-<meta name="twitter:image" content="https://tenislab.github.io/CourtLab/og-image.png"/>
+<meta name="twitter:title" content="CourtLab — Tus tácticas de tenis y pádel, vivas"/>
+<meta name="twitter:description" content="Crea, anima y comparte jugadas de tenis y pádel en segundos."/>
+<meta name="twitter:image" content="https://tenislab.github.io/TennisLab/og-image.png"/>
 
 <!-- Datos estructurados (Google) -->
 <script type="application/ld+json">
@@ -37,9 +37,9 @@
   "name": "CourtLab",
   "applicationCategory": "SportsApplication",
   "operatingSystem": "Web",
-  "description": "Pizarra táctica de tenis para crear, animar y compartir jugadas, y gestionar rivales y partidos.",
-  "url": "https://tenislab.github.io/CourtLab/",
-  "image": "https://tenislab.github.io/CourtLab/og-image.png",
+  "description": "Pizarra táctica de tenis y pádel para crear, animar y compartir jugadas, y gestionar rivales y partidos.",
+  "url": "https://tenislab.github.io/TennisLab/",
+  "image": "https://tenislab.github.io/TennisLab/og-image.png",
   "inLanguage": "es",
   "offers": [
     {"@type":"Offer","price":"0","priceCurrency":"EUR","name":"Gratis"},
@@ -121,6 +121,28 @@
   @keyframes bp{0%,100%{opacity:1}50%{opacity:.25}}
   .court-score{position:absolute;top:14px;right:14px;font-family:var(--mono);font-weight:700;font-size:14px;
     background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);padding:5px 11px;border-radius:8px}
+  /* self-building demo loop */
+  #court .pen{transform-box:fill-box;transform-origin:center}
+  .demo-steps{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);display:flex;gap:5px;z-index:3}
+  .demo-steps i{width:13px;height:3px;border-radius:2px;background:rgba(255,255,255,.25);transition:.3s}
+  .demo-steps i.on{background:var(--cl);width:22px}
+  .demo-cap{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:3;
+    font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--txt);
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.14);padding:6px 13px;border-radius:999px;
+    display:flex;align-items:center;gap:7px;white-space:nowrap;transition:opacity .25s}
+  .demo-cap::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cl);flex:none}
+  .demo-stats{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    background:rgba(12,11,10,.5);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .5s}
+  .demo-stats.show{opacity:1}
+  .demo-ring{--p:0;width:108px;height:108px;border-radius:50%;display:grid;place-items:center;position:relative;
+    background:conic-gradient(var(--mint) calc(var(--p)*1%), rgba(255,255,255,.12) 0)}
+  .demo-ring::before{content:"";position:absolute;inset:9px;border-radius:50%;background:#0c0b0a}
+  .demo-ring b{position:relative;font-family:var(--head);font-weight:900;font-size:26px;color:var(--txt)}
+  .demo-stats-lb{font-size:12px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
+  .demo-form{display:flex;gap:6px}
+  .demo-form span{width:21px;height:21px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center}
+  .demo-form .v{background:rgba(54,217,176,.18);color:var(--mint);border:1px solid rgba(54,217,176,.4)}
+  .demo-form .d{background:rgba(255,91,91,.15);color:#FF5B5B;border:1px solid rgba(255,91,91,.35)}
 
   /* stats strip */
   .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--ink-2)}
@@ -223,7 +245,7 @@
   <div class="wrap hero-grid">
     <div>
       <span class="kicker">Pizarra táctica de tenis y pádel</span>
-      <h1>Tus tácticas<br/>de tenis, <span class="o">vivas</span></h1>
+      <h1>Tus tácticas<br/>de tenis y pádel, <span class="o">vivas</span></h1>
       <p class="lead">Dibuja una jugada, dale al play y mírala moverse como en un partido real. Guarda rivales, prepara partidos y mejora con datos. En tu móvil, tablet y ordenador.</p>
       <div class="hero-cta">
         <a class="btn btn-primary btn-lg" href="app.html">Empezar gratis</a>
@@ -231,10 +253,16 @@
       </div>
       <div class="hero-note">✓ <span>7 días de Premium gratis ·</span> <b>sin compromiso</b></div>
     </div>
-    <div class="court-card" aria-label="Pista de tenis con una jugada animada">
-      <span class="court-badge"><i></i>EN VIVO</span>
-      <span class="court-score" id="score">0 — 0</span>
+    <div class="court-card" aria-label="Demo de CourtLab: crea y anima una jugada">
+      <span class="court-badge"><i></i>DEMO</span>
       <svg id="court" viewBox="0 0 300 375" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="demo-steps" id="demoSteps"><i class="on"></i><i></i><i></i><i></i></div>
+      <div class="demo-cap" id="demoCap"><span id="demoCapTx">Añade jugadores</span></div>
+      <div class="demo-stats" id="demoStats">
+        <div class="demo-ring" id="demoRing"><b>68%</b></div>
+        <div class="demo-stats-lb">Victorias esta temporada</div>
+        <div class="demo-form"><span class="v">V</span><span class="v">V</span><span class="d">D</span><span class="v">V</span><span class="v">V</span></div>
+      </div>
     </div>
   </div>
 </header>
@@ -362,20 +390,20 @@
     <div class="foot-links">
       <a href="privacidad.html">Privacidad</a>
       <a href="terminos.html">Términos</a>
-      <a href="mailto:soporte.tennislab@gmail.com">Contacto</a>
+      <a href="/cdn-cgi/l/email-protection#81f2eef1eef3f5e4aff5e4efefe8f2ede0e3c1e6ece0e8edafe2eeec">Contacto</a>
       <a href="app.html">Entrar a la app</a>
     </div>
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   document.getElementById('yr').textContent = new Date().getFullYear();
 
   // reveal on scroll
   const io = new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 
-  // mini live-match animation on the hero court
+  // self-building product demo on the hero court (add → draw → play → progress)
   (function(){
     const svg=document.getElementById('court'); if(!svg) return;
     const W=300,H=375, cx=W/2, net=H/2, top=40, bot=H-40;
@@ -388,39 +416,67 @@
     s+=`<line x1="${cx}" y1="${bot-70}" x2="${cx}" y2="${bot}" ${ln}/>`;
     s+=`<line x1="48" y1="${top+70}" x2="${W-48}" y2="${top+70}" ${ln}/>`;
     s+=`<line x1="48" y1="${bot-70}" x2="${W-48}" y2="${bot-70}" ${ln}/>`;
-    s+=`<g id="own"><circle cx="${cx-22}" cy="${bot-16}" r="13" fill="#D7F23A" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx-22}" y="${bot-11}" font-size="12" font-family="monospace" font-weight="700" fill="#1A1E12" text-anchor="middle">J1</text></g>`;
-    s+=`<g id="riv"><circle cx="${cx+22}" cy="${top+16}" r="13" fill="#FF5B5B" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx+22}" y="${top+21}" font-size="12" font-family="monospace" font-weight="700" fill="#fff" text-anchor="middle">R1</text></g>`;
-    s+=`<circle id="ball" cx="${cx-22}" cy="${bot-22}" r="7" fill="#fff"/>`;
+    const traj=[[cx-34,bot-22],[cx+66,top+58],[cx-72,bot-56],[cx+54,top+46]];
+    let d='M'+traj[0][0]+' '+traj[0][1];
+    for(let i=1;i<traj.length;i++) d+=' L'+traj[i][0]+' '+traj[i][1];
+    s+=`<path id="traj" d="${d}" fill="none" stroke="#D7F23A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>`;
+    s+=`<g id="j1" class="pen"><circle cx="${cx-30}" cy="${bot-16}" r="13" fill="#D7F23A" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx-30}" y="${bot-11}" font-size="12" font-family="monospace" font-weight="700" fill="#1A1E12" text-anchor="middle">J1</text></g>`;
+    s+=`<g id="r1" class="pen"><circle cx="${cx+26}" cy="${top+16}" r="13" fill="#FF5B5B" stroke="rgba(0,0,0,.4)" stroke-width="2"/><text x="${cx+26}" y="${top+21}" font-size="12" font-family="monospace" font-weight="700" fill="#fff" text-anchor="middle">R1</text></g>`;
+    s+=`<circle id="ball" cx="${traj[0][0]}" cy="${traj[0][1]}" r="7" fill="#fff" opacity="0"/>`;
     svg.innerHTML=s;
-    const ball=svg.querySelector('#ball'), own=svg.querySelector('#own'), riv=svg.querySelector('#riv'), score=document.getElementById('score');
-    const P=(x,y)=>({x,y});
-    const rallies=[
-      {s:[P(cx-22,bot-22),P(cx-60,top+40),P(cx+60,bot-30),P(cx-70,top+60),P(cx+74,bot-70)],w:'own'},
-      {s:[P(cx+22,top+22),P(cx+60,bot-40),P(cx-60,top+30),P(cx+70,bot-50)],w:'riv'},
-      {s:[P(cx-22,bot-22),P(cx,top+30),P(cx,bot-30),P(cx+74,top+44)],w:'own'},
-      {s:[P(cx+30,top+18),P(cx-70,bot-30),P(cx+40,top+70),P(cx-80,bot-90)],w:'riv'},
-      {s:[P(cx-30,bot-18),P(cx+70,top+30),P(cx-30,bot-60),P(cx+80,top+74)],w:'own'},
-    ];
-    function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-    let order=shuffle([...rallies.keys()]), oi=0, so=0, sr=0, segs=[], si=0, t0=null, phase='play', cur=null, raf=null;
+
+    const j1=svg.querySelector('#j1'), r1=svg.querySelector('#r1'), ball=svg.querySelector('#ball'), path=svg.querySelector('#traj');
+    const cap=document.getElementById('demoCapTx'), capWrap=document.getElementById('demoCap');
+    const stepEls=[...document.querySelectorAll('#demoSteps i')];
+    const stats=document.getElementById('demoStats'), ring=document.getElementById('demoRing');
+    const len=path.getTotalLength();
+    path.style.strokeDasharray=len; path.style.strokeDashoffset=len;
     const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
-    const setG=(g,X,Y)=>{const c=g.querySelector('circle'),t=g.querySelector('text');c.setAttribute('cx',X);c.setAttribute('cy',Y);if(t){t.setAttribute('x',X);t.setAttribute('y',Y+5);}};
-    function start(){cur=rallies[order[oi]];segs=[];for(let i=1;i<cur.s.length;i++)segs.push([cur.s[i-1],cur.s[i]]);si=0;t0=null;phase='play';const f=cur.s[0];ball.setAttribute('cx',f.x);ball.setAttribute('cy',f.y);ball.style.opacity=1;score.textContent=so+' — '+sr;}
-    function frame(ts){
-      if(t0===null)t0=ts;
-      if(phase==='play'){
-        const sg=segs[si],e=Math.min(1,(ts-t0)/1000),k=ease(e);
-        const X=sg[0].x+(sg[1].x-sg[0].x)*k,Y=sg[0].y+(sg[1].y-sg[0].y)*k;
-        ball.setAttribute('cx',X);ball.setAttribute('cy',Y);
-        const recv=sg[1].y>net?own:riv,ry=sg[1].y>net?bot-16:top+16;
-        const rc=recv.querySelector('circle'),px=+rc.getAttribute('cx');setG(recv,px+(sg[1].x-px)*.12,ry);
-        if(e>=1){si++;t0=ts;if(si>=segs.length){phase='pt';t0=ts;if(cur.w==='own')so++;else sr++;if(so>5||sr>5){so=0;sr=0;}ball.style.opacity=.25;score.textContent=so+' — '+sr;}}
-      }else if(ts-t0>1100){oi=(oi+1)%order.length;if(oi===0)order=shuffle(order);start();}
-      raf=requestAnimationFrame(frame);
+
+    let raf=null, timers=[];
+    function clearTimers(){ timers.forEach(clearTimeout); timers=[]; if(raf){cancelAnimationFrame(raf);raf=null;} }
+    function hidePlayers(){ [j1,r1].forEach(g=>{g.style.opacity=0; g.style.transform='translateY(-12px) scale(.5)';}); }
+    function dropIn(g,delay){ timers.push(setTimeout(()=>{ g.style.opacity=1; g.style.transform='none'; }, delay)); }
+    function setCap(tx){ capWrap.style.opacity=0; timers.push(setTimeout(()=>{ cap.textContent=tx; capWrap.style.opacity=1; },180)); }
+    function setStep(i){ stepEls.forEach((e,k)=>e.classList.toggle('on',k===i)); }
+
+    function reset(){
+      clearTimers(); hidePlayers();
+      ball.style.opacity=0; ball.setAttribute('cx',traj[0][0]); ball.setAttribute('cy',traj[0][1]);
+      path.style.transition='none'; path.style.strokeDashoffset=len; path.style.opacity=0;
+      stats.classList.remove('show'); ring.style.setProperty('--p','0');
     }
-    const mq=window.matchMedia('(prefers-reduced-motion: reduce)');
-    start();
-    if(!mq.matches) raf=requestAnimationFrame(frame);
+    function sceneAdd(){ setStep(0); setCap('Añade jugadores'); dropIn(j1,250); dropIn(r1,650);
+      timers.push(setTimeout(()=>{ ball.style.transition='opacity .4s'; ball.style.opacity=1; },1050)); }
+    function sceneDraw(){ setStep(1); setCap('Dibuja la jugada'); path.style.opacity=1;
+      path.getBoundingClientRect(); path.style.transition='stroke-dashoffset 2.3s cubic-bezier(.4,.1,.3,1)'; path.style.strokeDashoffset=0; }
+    function scenePlay(){ setStep(2); setCap('Dale al play'); const dur=3600; let t0=null; ball.style.transition='none';
+      function fr(ts){ if(t0===null)t0=ts; const e=Math.min(1,(ts-t0)/dur), L=len*ease(e), p=path.getPointAtLength(L);
+        ball.setAttribute('cx',p.x); ball.setAttribute('cy',p.y); if(e<1) raf=requestAnimationFrame(fr); }
+      raf=requestAnimationFrame(fr); }
+    function sceneStats(){ setStep(3); setCap('Mira tu progreso'); stats.classList.add('show');
+      let t0=null; const dur=900;
+      function fr(ts){ if(t0===null)t0=ts; const e=Math.min(1,(ts-t0)/dur); ring.style.setProperty('--p',String(Math.round(68*ease(e)))); if(e<1) raf=requestAnimationFrame(fr); }
+      timers.push(setTimeout(()=>{ raf=requestAnimationFrame(fr); },140)); }
+
+    function loop(){
+      reset(); sceneAdd();
+      timers.push(setTimeout(sceneDraw, 2500));
+      timers.push(setTimeout(scenePlay, 5400));
+      timers.push(setTimeout(sceneStats, 9600));
+      timers.push(setTimeout(loop, 13800));
+    }
+
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      j1.style.opacity=1;j1.style.transform='none'; r1.style.opacity=1;r1.style.transform='none';
+      path.style.opacity=1; path.style.transition='none'; path.style.strokeDashoffset=0;
+      const p=path.getPointAtLength(len); ball.style.opacity=1; ball.setAttribute('cx',p.x); ball.setAttribute('cy',p.y);
+      cap.textContent='Crea tu jugada';
+    } else {
+      [j1,r1].forEach(g=>{ g.style.transition='opacity .5s, transform .5s cubic-bezier(.2,1.3,.4,1)'; });
+      capWrap.style.transition='opacity .25s';
+      loop();
+    }
   })();
 </script>
 </body>
