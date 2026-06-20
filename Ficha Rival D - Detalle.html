@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ficha de Rival — Detalle (estilo D)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F0E0D; --ink-2:#1A1715; --ink-3:#221E1A; --ink-4:#2E2922;
+  --line:rgba(255,236,222,.10); --line-2:rgba(255,236,222,.18);
+  --txt:#F6F1EB; --txt-2:#AEA298; --txt-3:#7A6F65;
+  --ball:#F26C36; --ball-dim:#CC5C2B; --ball-ink:#190A02; --mint:#36D9B0;
+  --clay:#C4663E; --hard:#2E72B8; --grass:#3F8348; --indoor:#5B53A6;
+  --win:#46D6A6; --loss:#FF5B5B; --mid:#E8B04B;
+  --r-s:11px; --r-m:18px; --r-l:28px;
+  --head:'Archivo',sans-serif; --body:'Hanken Grotesk',sans-serif; --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0A0908;color:var(--txt);font-family:var(--body);-webkit-font-smoothing:antialiased;padding:34px clamp(16px,4vw,56px) 90px}
+svg.ic{width:1em;height:1em;display:block}
+.page-h{max-width:1080px;margin:0 auto 10px}
+.page-h h1{font-family:var(--head);font-weight:900;font-size:24px;letter-spacing:-.01em}
+.page-h p{color:var(--txt-2);font-size:14px;margin-top:6px;max-width:640px;line-height:1.5}
+
+.shell{max-width:1080px;margin:28px auto 0}
+
+/* top bar */
+.dtop{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.dtop .back{display:flex;align-items:center;gap:7px;background:var(--ink-3);border:1px solid var(--line);color:var(--txt-2);font-family:var(--mono);font-size:12px;font-weight:700;padding:9px 14px;border-radius:99px;cursor:pointer}
+.dtop .back svg{width:15px;height:15px}
+.dtop .spacer{flex:1}
+.dtop .act{display:flex;align-items:center;gap:7px;background:none;border:1px solid var(--line);color:var(--txt-2);font-family:var(--mono);font-size:12px;font-weight:700;padding:9px 14px;border-radius:99px;cursor:pointer}
+.dtop .act svg{width:14px;height:14px}
+.dtop .act.pri{background:var(--ball);border-color:var(--ball);color:var(--ball-ink)}
+
+.dgrid{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
+
+/* ===== LEFT identity panel (D-style, extended) ===== */
+.idp{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden;position:sticky;top:20px}
+.idp-hd{padding:26px 22px 20px;display:flex;flex-direction:column;align-items:center;gap:13px;text-align:center;background:linear-gradient(180deg,rgba(242,108,54,.16),rgba(242,108,54,0) 78%);position:relative}
+.idp .av{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-family:var(--head);font-weight:900;font-size:30px;color:#15120e;box-shadow:0 0 0 3px rgba(255,255,255,.10)}
+.idp-hd h2{font-family:var(--head);font-weight:800;font-size:21px;line-height:1.1}
+.idp-hd .sub{font-family:var(--mono);font-size:11px;color:var(--txt-2);letter-spacing:.03em;display:flex;align-items:center;gap:6px;justify-content:center}
+.idp .rank{font-family:var(--mono);font-weight:700;font-size:11px;color:var(--ball);background:rgba(242,108,54,.13);border:1px solid rgba(242,108,54,.25);padding:5px 12px;border-radius:99px}
+.idp-threat{display:flex;align-items:center;gap:8px;margin-top:2px}
+.idp-threat .lab{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3)}
+.idp-threat .dots{display:flex;gap:3px}
+.idp-threat i{width:7px;height:7px;border-radius:2px;background:var(--ink-4)}
+.idp-threat i.on{background:var(--ball)}
+.idp-facts{padding:6px 20px 18px;display:flex;flex-direction:column}
+.idp-fact{display:flex;flex-direction:column;gap:3px;padding:13px 0;border-bottom:1px solid var(--line)}
+.idp-fact:last-child{border-bottom:none}
+.idp-fact .k{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3)}
+.idp-fact .v{font-weight:600;font-size:14px}
+.idp-fact.good .v{color:var(--win)} .idp-fact.bad .v{color:var(--loss)}
+.idp-notes{margin:0 20px 20px;background:var(--ink-3);border:1px solid var(--line);border-radius:var(--r-s);padding:12px 13px;font-size:12.5px;line-height:1.5;color:var(--txt-2)}
+
+/* ===== RIGHT main ===== */
+.main{display:flex;flex-direction:column;gap:16px}
+.block{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-m);padding:18px}
+.kick{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3);margin-bottom:13px}
+
+/* record bar row */
+.recbar{display:flex;align-items:center;gap:14px}
+.recbar .big{font-family:var(--head);font-weight:900;font-size:30px;line-height:1;display:flex;align-items:baseline;gap:5px;flex:none}
+.recbar .big .w{color:var(--win)}.recbar .big .x{color:var(--txt-3);font-size:20px}.recbar .big .l{color:var(--loss)}
+.recbar .seg{flex:1;height:10px;border-radius:99px;background:var(--loss);overflow:hidden}
+.recbar .seg b{display:block;height:100%;background:var(--win)}
+.recbar .pct{font-family:var(--head);font-weight:800;font-size:18px;flex:none;color:var(--win)}
+
+/* stat strip */
+.statstrip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.statstrip .s{background:var(--ink-3);border:1px solid var(--line);border-radius:var(--r-s);padding:13px 14px}
+.statstrip .s .n{font-family:var(--head);font-weight:800;font-size:21px;line-height:1}
+.statstrip .s .n.ball{color:var(--ball)}
+.statstrip .s .l{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-3);margin-top:6px}
+
+/* win probability */
+.wp{display:flex;gap:20px;align-items:center}
+.wp-gauge{flex:none;width:120px;text-align:center}
+.wp-gauge .cap{font-family:var(--mono);font-size:10px;color:var(--win);margin-top:6px}
+.wp-gauge b{position:relative;display:inline-grid;place-items:center}
+.wp-gauge .num{position:absolute;font-family:var(--head);font-weight:900;font-size:24px;color:var(--win)}
+.wp-right{flex:1}
+.wp-chips{display:flex;gap:6px;margin-bottom:11px;flex-wrap:wrap}
+.wp-chips .c{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:5px 11px;border-radius:99px;border:1px solid var(--line);color:var(--txt-3);cursor:pointer}
+.wp-chips .c.on{background:var(--ball);border-color:var(--ball);color:var(--ball-ink)}
+.wp-f{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt-2);padding:5px 0}
+.wp-f i{width:7px;height:7px;border-radius:50%;flex:none}
+.wp-f.up i{background:var(--win)} .wp-f.down i{background:var(--loss)} .wp-f.flat i{background:var(--txt-3)}
+
+/* attack map */
+.amap{display:flex;gap:18px;align-items:center}
+.amap-court{flex:none;width:200px}
+.amap-court svg{width:100%;height:auto;border-radius:10px;display:block;border:1px solid var(--line)}
+.amap-side .plan{font-size:13.5px;line-height:1.5;color:var(--txt);margin-bottom:11px}
+.amap-leg{display:flex;gap:16px;font-family:var(--mono);font-size:10.5px;color:var(--txt-3)}
+.amap-leg span{display:flex;align-items:center;gap:6px}
+.amap-leg i{width:11px;height:11px;border-radius:3px;display:block}
+.amap-leg i.hot{background:#FF5237} .amap-leg i.cold{background:#37A2FF}
+
+/* head to head tactics */
+.h2h-tac{display:flex;align-items:center;gap:11px;width:100%;background:var(--ink-3);border:1px solid var(--line);border-radius:var(--r-s);padding:11px 13px;margin-bottom:8px;cursor:pointer;text-align:left}
+.h2h-tac:last-child{margin-bottom:0}
+.h2h-tac:hover{border-color:var(--line-2)}
+.h2h-tac .nm{font-weight:600;font-size:13.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h2h-tac .bar{width:64px;height:6px;border-radius:99px;background:var(--ink-4);overflow:hidden;flex:none}
+.h2h-tac .bar b{display:block;height:100%}
+.h2h-tac .rec{font-family:var(--mono);font-size:11px;color:var(--txt-2);flex:none;width:30px;text-align:right}
+.h2h-tac .tag{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:99px;flex:none}
+.h2h-tac.good .bar b{background:var(--win)} .h2h-tac.good .tag{background:rgba(70,214,166,.15);color:var(--win)}
+.h2h-tac.mid .bar b{background:var(--mid)} .h2h-tac.mid .tag{background:rgba(232,176,75,.15);color:var(--mid)}
+.h2h-tac.bad .bar b{background:var(--loss)} .h2h-tac.bad .tag{background:rgba(255,91,91,.15);color:var(--loss)}
+.h2h-tac .chev{color:var(--txt-3);flex:none}.h2h-tac .chev svg{width:15px;height:15px}
+
+/* match rows */
+.mrow{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;border-bottom:1px solid var(--line);padding:12px 2px;cursor:pointer;text-align:left}
+.mrow:last-child{border-bottom:none}
+.mrow .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.mrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt-2)}
+.mrow .res{font-family:var(--mono);font-size:12px;color:var(--txt-3);flex:none}
+.mrow .st{font-family:var(--mono);font-size:9.5px;font-weight:700;text-transform:uppercase;padding:3px 9px;border-radius:99px;flex:none}
+.mrow .st.win{background:rgba(70,214,166,.15);color:var(--win)} .mrow .st.loss{background:rgba(255,91,91,.15);color:var(--loss)}
+.mrow .chev{color:var(--txt-3);flex:none}.mrow .chev svg{width:15px;height:15px}
+
+@media(max-width:760px){
+  .dgrid{grid-template-columns:1fr}
+  .idp{position:static}
+  .idp-hd{flex-direction:row;text-align:left;align-items:center}
+  .idp-hd h2{font-size:19px}
+  .amap{flex-direction:column;align-items:stretch}.amap-court{width:100%;max-width:220px;margin:0 auto}
+  .wp{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="page-h">
+  <h1>Al pinchar en un rival — estilo D</h1>
+  <p>Así se vería la ficha completa con la estética del panel dividido: identidad fija a la izquierda, todo el análisis a la derecha.</p>
+</div>
+
+<div class="shell">
+  <div class="dtop">
+    <button class="back" id="back"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg> Rivales</button>
+    <span class="spacer"></span>
+    <button class="act"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5h20v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Informe PDF</button>
+    <button class="act pri"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Editar</button>
+  </div>
+
+  <div class="dgrid">
+    <!-- LEFT identity -->
+    <aside class="idp">
+      <div class="idp-hd">
+        <span class="av" style="background:#E8B04B">IP</span>
+        <div>
+          <h2>Iván Pacheco</h2>
+          <div class="sub">🎾 Diestro · Abs. Provincial</div>
+        </div>
+        <span class="rank">#142 RFET</span>
+        <div class="idp-threat"><span class="lab">Amenaza</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+      </div>
+      <div class="idp-facts">
+        <div class="idp-fact good"><span class="k">Pega</span><span class="v">Derecha cruzada</span></div>
+        <div class="idp-fact bad"><span class="k">Falla</span><span class="v">Revés alto</span></div>
+        <div class="idp-fact"><span class="k">Estilo</span><span class="v">Agresivo de fondo</span></div>
+        <div class="idp-fact"><span class="k">Mejor superficie</span><span class="v">Tierra batida</span></div>
+      </div>
+      <p class="idp-notes">Le cuesta con bolas altas al revés. Sube poco a la red — buen candidato para dejadas y globos.</p>
+    </aside>
+
+    <!-- RIGHT main -->
+    <div class="main">
+      <!-- record + stats -->
+      <div class="block">
+        <div class="kick">Resumen</div>
+        <div class="recbar">
+          <div class="big"><span class="w">4</span><span class="x">–</span><span class="l">1</span></div>
+          <div class="seg"><b style="width:80%"></b></div>
+          <div class="pct">80%</div>
+        </div>
+        <div class="statstrip" style="margin-top:16px">
+          <div class="s"><div class="n">5</div><div class="l">Partidos</div></div>
+          <div class="s"><div class="n ball">5</div><div class="l">Tácticas</div></div>
+          <div class="s"><div class="n" style="font-size:14px;line-height:1.2">Saque y red</div><div class="l">Mejor táctica</div></div>
+        </div>
+      </div>
+
+      <!-- attack map -->
+      <div class="block">
+        <div class="kick">Mapa de ataque</div>
+        <div class="amap">
+          <div class="amap-court">
+            <svg viewBox="0 0 30 23" xmlns="http://www.w3.org/2000/svg">
+              <defs><filter id="hb" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.5"/></filter></defs>
+              <rect x="0" y="0" width="30" height="23" fill="#15120F"/>
+              <!-- heat blobs (rival's box) -->
+              <g filter="url(#hb)">
+                <circle cx="22" cy="6.5" r="6.2" fill="#FF5237" opacity="0.62"/>
+                <circle cx="22.5" cy="13" r="4.6" fill="#FF5237" opacity="0.30"/>
+                <circle cx="7" cy="8" r="4.4" fill="#37A2FF" opacity="0.34"/>
+                <circle cx="6.5" cy="14" r="3.6" fill="#37A2FF" opacity="0.20"/>
+              </g>
+              <!-- court lines (rival's half: singles box + service line + net at bottom) -->
+              <g stroke="rgba(238,232,222,.5)" stroke-width="0.13" stroke-linecap="round" fill="none">
+                <rect x="3" y="2" width="24" height="18" fill="rgba(255,255,255,.035)"/>
+                <line x1="3" y1="11" x2="27" y2="11"/>
+                <line x1="15" y1="11" x2="15" y2="20"/>
+                <line x1="15" y1="2" x2="15" y2="2.6"/>
+              </g>
+              <line x1="2" y1="20" x2="28" y2="20" stroke="rgba(238,232,222,.5)" stroke-width="0.24" stroke-linecap="round"/>
+              <!-- crosshair on hot zone -->
+              <g opacity="0.96" stroke="#fff" stroke-width="0.13" stroke-linecap="round">
+                <circle cx="22" cy="6.5" r="1.3" fill="none"/>
+                <line x1="20.4" y1="6.5" x2="20.9" y2="6.5"/>
+                <line x1="23.1" y1="6.5" x2="23.6" y2="6.5"/>
+                <line x1="22" y1="4.9" x2="22" y2="5.4"/>
+                <line x1="22" y1="7.6" x2="22" y2="8.1"/>
+                <circle cx="22" cy="6.5" r="0.35" fill="#fff" stroke="none"/>
+              </g>
+            </svg>
+          </div>
+          <div class="amap-side">
+            <p class="plan">Ataca su <b style="color:var(--loss)">revés alto</b> (zona roja) y evita el centro-derecha donde aprieta con la derecha.</p>
+            <div class="amap-leg"><span><i class="hot"></i>Ataca</span><span><i class="cold"></i>Evita</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- win probability -->
+      <div class="block">
+        <div class="kick">Probabilidad de victoria</div>
+        <div class="wp">
+          <div class="wp-gauge">
+            <b>
+              <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg)">
+                <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="9"/>
+                <circle cx="55" cy="55" r="46" fill="none" stroke="#46D6A6" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="78"/>
+              </svg>
+              <span class="num">73%</span>
+            </b>
+            <div class="cap">a tu favor · Tierra</div>
+          </div>
+          <div class="wp-right">
+            <div class="wp-chips"><span class="c on">Tierra</span><span class="c">Dura</span><span class="c">Hierba</span><span class="c">Indoor</span></div>
+            <div class="wp-f up"><i></i>Ganas 4 de 5 en tierra contra él</div>
+            <div class="wp-f up"><i></i>"Saque y red" tiene 100% contra este rival</div>
+            <div class="wp-f down"><i></i>Su derecha cruzada te ha hecho daño antes</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- head to head -->
+      <div class="block">
+        <div class="kick">Cara a cara · Tácticas contra Iván</div>
+        <button class="h2h-tac good"><span class="nm">Saque y tomar la red</span><span class="bar"><b style="width:100%"></b></span><span class="rec">2-0</span><span class="tag">funciona</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+        <button class="h2h-tac good"><span class="nm">Globo y robar la red</span><span class="bar"><b style="width:100%"></b></span><span class="rec">1-0</span><span class="tag">funciona</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+        <button class="h2h-tac mid"><span class="nm">Cruzar al revés y abrir</span><span class="bar"><b style="width:50%"></b></span><span class="rec">1-1</span><span class="tag">irregular</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+        <button class="h2h-tac bad"><span class="nm">Intercambio de fondo</span><span class="bar"><b style="width:0%"></b></span><span class="rec">0-1</span><span class="tag">arriesgada</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+      </div>
+
+      <!-- matches -->
+      <div class="block">
+        <div class="kick">Partidos</div>
+        <button class="mrow"><span class="dot" style="background:var(--clay)"></span><span class="nm">12 may · Tierra · 📍 CT Granada · Provincial</span><span class="res">6-4 6-3</span><span class="st win">Ganado</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+        <button class="mrow"><span class="dot" style="background:var(--hard)"></span><span class="nm">28 mar · Dura · 📍 Club Tenis Sur</span><span class="res">7-5 6-4</span><span class="st win">Ganado</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+        <button class="mrow"><span class="dot" style="background:var(--clay)"></span><span class="nm">14 feb · Tierra · Open de invierno</span><span class="res">4-6 3-6</span><span class="st loss">Perdido</span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="400" height="400" rx="64" fill="#1A1715"/>
+    <rect x="80" y="120" width="90" height="160" rx="18" fill="#E8B04B"/>
+    <rect x="186" y="120" width="134" height="46" rx="12" fill="#F26C36"/>
+    <rect x="186" y="178" width="134" height="46" rx="12" fill="#2E2922"/>
+    <rect x="186" y="236" width="134" height="44" rx="12" fill="#2E2922"/>
+  </svg>
+</template>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ficha Rival · Opciones de estructura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1A1715"/><circle cx="50" cy="34" r="14" fill="#F26C36"/><rect x="26" y="58" width="48" height="6" rx="3" fill="#2E2922"/><rect x="32" y="70" width="36" height="6" rx="3" fill="#2E2922"/></svg>
+</template>
+<style>
+  :root{
+    --ink:#0F0E0D; --ink-2:#1A1715; --ink-3:#221E1A; --ink-4:#2E2922;
+    --line:rgba(255,236,222,.10); --line-2:rgba(255,236,222,.18);
+    --txt:#F6F1EB; --txt-2:#AEA298; --txt-3:#7A6F65;
+    --ball:#F26C36; --mint:#36D9B0; --win:#46D6A6; --loss:#FF5B5B;
+    --r-s:11px; --r-m:18px; --r-l:28px;
+    --head:'Archivo',system-ui,sans-serif; --body:'Hanken Grotesk',system-ui,sans-serif; --mono:'Space Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--body);background:#0b0a09;color:var(--txt)}
+  h1,h2,h3{font-family:var(--head);font-weight:800;line-height:1;letter-spacing:-.01em;margin:0}
+  .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--txt-3)}
+
+  /* ===== shared rival-detail primitives (mirror real app) ===== */
+  .rd{background:var(--ink);padding:20px;height:100%;overflow:hidden}
+  .rd-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .gbtn{font-family:var(--head);font-weight:700;font-size:12px;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:var(--ink-3);border:1px solid var(--line);color:var(--txt)}
+  .gbtn.line{background:transparent;border-color:var(--line-2)}
+  .gbtn .ar{color:var(--ball)}
+  .sp{flex:1}
+
+  .av{border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--head);font-weight:900;color:#15120e;background:#9b7be8;box-shadow:0 0 0 3px rgba(155,123,232,.25)}
+  .threat{display:flex;align-items:center;gap:7px}
+  .threat .lab{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3)}
+  .threat .dots{display:flex;gap:3px}
+  .threat i{width:7px;height:7px;border-radius:2px;background:var(--ink-4)}
+  .threat i.on{background:var(--ball)}
+  .rank{font-family:var(--mono);font-weight:700;font-size:10px;color:var(--ball);background:rgba(242,108,54,.13);border:1px solid rgba(242,108,54,.25);padding:4px 10px;border-radius:99px}
+  .sub{font-family:var(--mono);font-size:11px;color:var(--txt-2);letter-spacing:.02em}
+
+  .block{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-m);padding:16px}
+  .block + .block{margin-top:14px}
+  .block .kicker{margin-bottom:11px;display:block}
+
+  /* win prob gauge mini */
+  .wp{display:flex;gap:16px;align-items:center}
+  .gauge{width:96px;height:96px;border-radius:50%;flex:none;display:grid;place-items:center;
+    background:conic-gradient(var(--win) 0 64%, var(--ink-4) 64% 100%);position:relative}
+  .gauge::after{content:"";position:absolute;inset:10px;border-radius:50%;background:var(--ink-2)}
+  .gauge b{position:relative;font-family:var(--head);font-weight:900;font-size:24px;color:var(--win)}
+  .wp ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;flex:1;font-size:12.5px;color:var(--txt-2)}
+  .wp li{display:flex;gap:8px;align-items:center}
+  .wp li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mint);flex:none}
+
+  /* attack court mini */
+  .court{aspect-ratio:2/1.15;border-radius:10px;background:linear-gradient(#7a3f24,#6a3520);position:relative;overflow:hidden;border:1px solid var(--line)}
+  .court .net{position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,255,255,.5)}
+  .court .ln{position:absolute;border:1.5px solid rgba(255,255,255,.28)}
+  .hot{position:absolute;border-radius:50%;filter:blur(7px)}
+  .hot.h{background:rgba(242,108,54,.7)} .hot.c{background:rgba(54,150,217,.55)}
+
+  /* record bar */
+  .rec{display:flex;align-items:center;gap:13px}
+  .rec .big{font-family:var(--head);font-weight:900;font-size:28px;display:flex;align-items:baseline;gap:5px}
+  .rec .big .w{color:var(--win)}.rec .big .x{color:var(--txt-3);font-size:18px}.rec .big .l{color:var(--loss)}
+  .rec .seg{flex:1;height:9px;border-radius:99px;background:var(--loss);overflow:hidden}
+  .rec .seg b{display:block;height:100%;width:71%;background:var(--win)}
+  .rec .pct{font-family:var(--head);font-weight:800;font-size:17px;color:var(--win)}
+  .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}
+  .strip .s{background:var(--ink-3);border:1px solid var(--line);border-radius:var(--r-s);padding:11px 12px}
+  .strip .n{font-family:var(--head);font-weight:800;font-size:19px}
+  .strip .n.ball{color:var(--ball)} .strip .n.sm{font-size:13px;color:var(--txt)}
+  .strip .l{font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--txt-3);margin-top:5px}
+
+  .pips{display:flex;gap:4px;margin-top:9px}
+  .pip{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:11px}
+  .pip.w{background:rgba(70,214,166,.18);color:var(--win)} .pip.l{background:rgba(255,91,91,.16);color:var(--loss)}
+
+  .ghost{color:var(--txt-3);font-size:12px;font-family:var(--mono)}
+  .twocol{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+
+  /* annotation note */
+  .note{font-family:var(--body);font-size:12.5px;line-height:1.5;color:#3a2c20}
+  .note b{font-family:var(--head)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+/* ---- reusable mock fragments ---- */
+const Avatar = ({size=84, fs=30}) => (
+  <span className="av" style={{width:size,height:size,fontSize:fs}}>LB</span>
+);
+const Threat = () => (
+  <div className="threat"><span className="lab">Amenaza</span>
+    <div className="dots">{[1,2,3,4,5].map(i=><i key={i} className={i<=3?'on':''}/>)}</div>
+  </div>
+);
+const WinProb = () => (
+  <div className="block">
+    <span className="kicker">Probabilidad de victoria</span>
+    <div className="wp">
+      <div className="gauge"><b>64%</b></div>
+      <ul>
+        <li>A tu favor en tierra</li>
+        <li>Le ganas las bolas largas</li>
+        <li>Cuidado con su saque cortado</li>
+      </ul>
+    </div>
+  </div>
+);
+const Attack = () => (
+  <div className="block">
+    <span className="kicker">Mapa de ataque</span>
+    <div className="court">
+      <div className="net"></div>
+      <div className="ln" style={{left:'14%',right:'14%',top:'8%',bottom:'8%'}}></div>
+      <div className="hot h" style={{width:64,height:64,right:'16%',top:'14%'}}></div>
+      <div className="hot c" style={{width:52,height:52,left:'20%',bottom:'16%'}}></div>
+    </div>
+    <p className="ghost" style={{margin:'10px 0 0'}}>Ataca su revés cruzado · evita su derecha invertida</p>
+  </div>
+);
+const Summary = () => (
+  <div className="block">
+    <span className="kicker">Resumen</span>
+    <div className="rec">
+      <div className="big"><span className="w">5</span><span className="x">–</span><span className="l">2</span></div>
+      <div className="seg"><b></b></div>
+      <div className="pct">71%</div>
+    </div>
+    <div className="strip">
+      <div className="s"><div className="n">7</div><div className="l">Jugados</div></div>
+      <div className="s"><div className="n ball">3</div><div className="l">Tácticas</div></div>
+      <div className="s"><div className="n sm">Saque y red</div><div className="l">Mejor táctica</div></div>
+    </div>
+  </div>
+);
+const H2H = () => (
+  <div className="block">
+    <span className="kicker">Cara a cara</span>
+    <div className="pips">
+      <span className="pip w">V</span><span className="pip w">V</span><span className="pip l">D</span>
+      <span className="pip w">V</span><span className="pip w">V</span>
+    </div>
+    <p className="ghost" style={{margin:'10px 0 0'}}>Racha de 2 victorias · últimos 5</p>
+  </div>
+);
+
+/* =========================================================
+   OPTION A — Banner horizontal, una sola columna
+   ========================================================= */
+function OptA(){
+  return (
+    <div className="rd">
+      <div className="rd-bar">
+        <span className="gbtn"><span className="ar">‹</span> Rivales</span>
+        <div className="sp"></div>
+        <span className="gbtn line">PDF scout</span>
+        <span className="gbtn line">Editar</span>
+      </div>
+      {/* hero band */}
+      <div style={{display:'flex',alignItems:'center',gap:18,background:'linear-gradient(110deg,rgba(242,108,54,.16),rgba(242,108,54,0) 60%)',border:'1px solid var(--line)',borderRadius:'var(--r-l)',padding:'18px 20px',marginBottom:16}}>
+        <Avatar size={70} fs={26}/>
+        <div style={{minWidth:0}}>
+          <h2 style={{fontSize:26}}>L. Bravo</h2>
+          <div className="sub" style={{marginTop:6}}>🎾 Zurdo · +35</div>
+        </div>
+        <div className="sp"></div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:9}}>
+          <span className="rank">#118</span>
+          <Threat/>
+        </div>
+      </div>
+      <WinProb/><Attack/><Summary/><H2H/>
+    </div>
+  );
+}
+
+/* =========================================================
+   OPTION B — Barra de identidad fina (sticky) + columna
+   ========================================================= */
+function OptB(){
+  return (
+    <div className="rd">
+      <div className="rd-bar">
+        <span className="gbtn"><span className="ar">‹</span> Rivales</span>
+        <div className="sp"></div>
+        <span className="gbtn line">PDF scout</span>
+        <span className="gbtn line">Editar</span>
+      </div>
+      {/* slim sticky id bar */}
+      <div style={{display:'flex',alignItems:'center',gap:13,background:'var(--ink-2)',border:'1px solid var(--line)',borderRadius:999,padding:'10px 16px',marginBottom:16}}>
+        <Avatar size={44} fs={16}/>
+        <div style={{minWidth:0}}>
+          <h2 style={{fontSize:19}}>L. Bravo</h2>
+          <div className="sub" style={{marginTop:3,fontSize:10}}>🎾 Zurdo · +35</div>
+        </div>
+        <div className="sp"></div>
+        <span className="rank">#118</span>
+        <Threat/>
+        <div style={{display:'flex',alignItems:'baseline',gap:4,fontFamily:'var(--head)',fontWeight:900}}>
+          <span style={{color:'var(--win)',fontSize:20}}>5</span><span style={{color:'var(--txt-3)'}}>–</span><span style={{color:'var(--loss)',fontSize:20}}>2</span>
+        </div>
+      </div>
+      <WinProb/><Attack/><Summary/><H2H/>
+    </div>
+  );
+}
+
+/* =========================================================
+   OPTION C — Dos columnas, rail izquierdo lleno (sticky)
+   ========================================================= */
+function OptC(){
+  return (
+    <div className="rd">
+      <div className="rd-bar">
+        <span className="gbtn"><span className="ar">‹</span> Rivales</span>
+        <div className="sp"></div>
+        <span className="gbtn line">PDF scout</span>
+        <span className="gbtn line">Editar</span>
+      </div>
+      <div className="twocol">
+        <aside style={{background:'var(--ink-2)',border:'1px solid var(--line)',borderRadius:'var(--r-l)',overflow:'hidden'}}>
+          <div style={{padding:'24px 18px 18px',display:'flex',flexDirection:'column',alignItems:'center',gap:11,textAlign:'center',background:'linear-gradient(180deg,rgba(242,108,54,.16),rgba(242,108,54,0) 78%)'}}>
+            <Avatar size={78} fs={28}/>
+            <div><h2 style={{fontSize:21}}>L. Bravo</h2><div className="sub" style={{marginTop:5}}>🎾 Zurdo · +35</div></div>
+            <span className="rank">#118</span>
+            <Threat/>
+          </div>
+          <div style={{padding:'4px 16px 16px'}}>
+            <div className="rec" style={{marginBottom:13}}>
+              <div className="big"><span className="w">5</span><span className="x">–</span><span className="l">2</span></div>
+              <div className="seg"><b></b></div>
+              <div className="pct">71%</div>
+            </div>
+            <div className="gauge" style={{margin:'0 auto'}}><b>64%</b></div>
+            <p className="ghost" style={{textAlign:'center',margin:'10px 0 0'}}>Prob. victoria en tierra</p>
+          </div>
+        </aside>
+        <div style={{minWidth:0}}>
+          <Attack/><Summary/><H2H/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   OPTION D — Hero centrado grande + columna estrecha
+   ========================================================= */
+function OptD(){
+  return (
+    <div className="rd">
+      <div className="rd-bar">
+        <span className="gbtn"><span className="ar">‹</span> Rivales</span>
+        <div className="sp"></div>
+        <span className="gbtn line">Editar</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12,textAlign:'center',padding:'14px 0 22px'}}>
+        <Avatar size={92} fs={34}/>
+        <h2 style={{fontSize:34}}>L. Bravo</h2>
+        <div className="sub">🎾 Zurdo · +35</div>
+        <div style={{display:'flex',gap:10,alignItems:'center'}}><span className="rank">#118</span><Threat/></div>
+      </div>
+      <div style={{maxWidth:560,margin:'0 auto'}}>
+        <WinProb/><Attack/><Summary/>
+      </div>
+    </div>
+  );
+}
+
+const PIN = ({children}) => (
+  <div style={{position:'absolute',top:-30,left:0,fontFamily:'var(--mono)',fontSize:11,letterSpacing:'.06em',color:'#c9bcae'}}>{children}</div>
+);
+
+function App(){
+  const H = 720;
+  return (
+    <DesignCanvas>
+      <DCSection id="opts" title="Ficha del rival — opciones de estructura" subtitle="Mismo contenido, distinta disposición. Pásalas a fullscreen (clic en la flecha) para verlas grandes.">
+        <DCArtboard id="a" label="A · Banner + 1 columna" width={620} height={H}>
+          <OptA/>
+        </DCArtboard>
+        <DCArtboard id="b" label="B · Barra fina sticky + 1 columna" width={620} height={H}>
+          <OptB/>
+        </DCArtboard>
+        <DCArtboard id="c" label="C · 2 columnas (rail lleno)" width={620} height={H}>
+          <OptC/>
+        </DCArtboard>
+        <DCArtboard id="d" label="D · Hero centrado" width={620} height={H}>
+          <OptD/>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

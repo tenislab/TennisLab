@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Estilos — TennisLab</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=Sora:wght@400;600;700;800&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0c0d;color:#fff;font-family:'Hanken Grotesk',sans-serif;padding:30px clamp(14px,4vw,50px) 80px}
+  .page-h{font-family:'Archivo',sans-serif;font-weight:900;font-size:clamp(22px,4vw,34px);text-transform:uppercase;letter-spacing:-.02em}
+  .page-sub{font-family:'Space Mono',monospace;color:#8a8a8a;font-size:13px;letter-spacing:.08em;margin:6px 0 30px;text-transform:uppercase}
+  .styles{display:flex;flex-direction:column;gap:30px}
+  .style{border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+  .style-tag{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#161617;border-bottom:1px solid rgba(255,255,255,.08)}
+  .style-tag .nn{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:#E8703D;letter-spacing:.1em}
+  .style-tag h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:18px}
+  .style-tag p{color:#9a9a9a;font-size:13px;margin-left:auto;text-align:right;max-width:50%}
+  .demo{padding:26px}
+
+  /* ============ A · PRO CONSOLE ============ */
+  .sA{background:#0f1318;font-family:'Sora',sans-serif}
+  .sA .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .sA .ttl{font-weight:800;font-size:24px;letter-spacing:-.01em;color:#EAF2F8}
+  .sA .badge{font-family:'Space Mono',monospace;font-size:11px;color:#3CE0C0;border:1px solid rgba(60,224,192,.4);padding:5px 10px;border-radius:6px;background:rgba(60,224,192,.08)}
+  .sA .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .sA .st{background:linear-gradient(160deg,#16202a,#111820);border:1px solid rgba(120,200,255,.12);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+  .sA .st::after{content:"";position:absolute;inset:0;background:radial-gradient(80px 50px at 100% 0,#3CE0C0,transparent 70%);opacity:.12}
+  .sA .st .n{font-weight:800;font-size:30px;color:#EAF2F8;font-family:'Space Mono',monospace}
+  .sA .st .l{font-family:'Space Mono',monospace;font-size:10px;color:#6e8090;text-transform:uppercase;letter-spacing:.1em;margin-top:6px}
+  .sA .st .n.acc{color:#3CE0C0}
+
+  /* ============ B · EDITORIAL BOLD ============ */
+  .sB{background:#F4F1EA;color:#16140f;font-family:'Hanken Grotesk',sans-serif}
+  .sB .ttl{font-family:'Syne',sans-serif;font-weight:800;font-size:42px;line-height:.92;text-transform:uppercase;letter-spacing:-.02em;margin-bottom:4px}
+  .sB .ttl em{font-style:normal;background:#E8703D;color:#fff;padding:0 .08em}
+  .sB .lead{color:#6a6253;font-size:14px;margin-bottom:22px;max-width:30ch}
+  .sB .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:2px solid #16140f}
+  .sB .st{padding:18px 16px;border-right:1px solid rgba(22,20,15,.15)}
+  .sB .st:last-child{border-right:none}
+  .sB .st .n{font-family:'Syne',sans-serif;font-weight:800;font-size:40px;line-height:1}
+  .sB .st .l{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#8a8276;margin-top:4px}
+
+  /* ============ C · SOFT GLASS ============ */
+  .sC{background:radial-gradient(120% 100% at 0 0,#2a2350,#15131f 60%);font-family:'Hanken Grotesk',sans-serif;color:#ECE9F7}
+  .sC .ttl{font-weight:700;font-size:26px;letter-spacing:-.01em;margin-bottom:20px}
+  .sC .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .sC .st{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:18px;backdrop-filter:blur(10px);box-shadow:0 8px 30px -10px rgba(0,0,0,.5)}
+  .sC .st .ic{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,#9D7BFF,#6A5BD0);display:grid;place-items:center;margin-bottom:12px;font-size:16px}
+  .sC .st .n{font-weight:800;font-size:28px}
+  .sC .st .l{font-size:12px;color:#b4add0;margin-top:4px}
+
+  /* ============ D · NEO-BRUTALIST ============ */
+  .sD{background:#FCE94F;color:#111;font-family:'Bricolage Grotesque',sans-serif}
+  .sD .ttl{font-weight:800;font-size:34px;text-transform:uppercase;letter-spacing:-.02em;margin-bottom:18px;background:#111;color:#FCE94F;display:inline-block;padding:4px 12px;transform:rotate(-1deg)}
+  .sD .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .sD .st{background:#fff;border:3px solid #111;border-radius:4px;padding:16px;box-shadow:5px 5px 0 #111}
+  .sD .st .n{font-weight:800;font-size:34px;line-height:1}
+  .sD .st .l{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:6px;font-weight:700}
+  .sD .st:nth-child(2){background:#FF6B3D;color:#fff}
+  .sD .st:nth-child(2) .st-l,.sD .st:nth-child(2) .l{color:#ffe}
+
+  @media(max-width:680px){.sA .stats,.sB .stats,.sC .stats,.sD .stats{grid-template-columns:repeat(2,1fr)}.sB .st:nth-child(2){border-right:none}}
+</style>
+</head>
+<body>
+  <div class="page-h">4 estilos de interfaz</div>
+  <div class="page-sub">Mismo dashboard, 4 direcciones · dime el número</div>
+
+  <div class="styles">
+    <div class="style">
+      <div class="style-tag"><span class="nn">A</span><h3>Pro Console</h3><p>Consola de datos. Oscuro técnico, números monospace, acentos con brillo.</p></div>
+      <div class="demo sA">
+        <div class="top"><div class="ttl">Tu pizarra</div><span class="badge">● EN FORMA · 72%</span></div>
+        <div class="stats">
+          <div class="st"><div class="n">14</div><div class="l">Tácticas</div></div>
+          <div class="st"><div class="n">6</div><div class="l">Rivales</div></div>
+          <div class="st"><div class="n">23</div><div class="l">Partidos</div></div>
+          <div class="st"><div class="n acc">72%</div><div class="l">Ganados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="style">
+      <div class="style-tag"><span class="nn">B</span><h3>Editorial Bold</h3><p>Tipo revista. Letra enorme, papel cálido, números gigantes.</p></div>
+      <div class="demo sB">
+        <div class="ttl">Tu <em>pizarra</em><br>táctica</div>
+        <div class="lead">Resumen de la temporada de un vistazo.</div>
+        <div class="stats">
+          <div class="st"><div class="n">14</div><div class="l">Tácticas</div></div>
+          <div class="st"><div class="n">6</div><div class="l">Rivales</div></div>
+          <div class="st"><div class="n">23</div><div class="l">Partidos</div></div>
+          <div class="st"><div class="n">72%</div><div class="l">Ganados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="style">
+      <div class="style-tag"><span class="nn">C</span><h3>Soft Glass</h3><p>Cristal esmerilado, degradados suaves, profundidad y brillo.</p></div>
+      <div class="demo sC">
+        <div class="ttl">Tu pizarra táctica</div>
+        <div class="stats">
+          <div class="st"><div class="ic">🎾</div><div class="n">14</div><div class="l">Tácticas</div></div>
+          <div class="st"><div class="ic">🎯</div><div class="n">6</div><div class="l">Rivales</div></div>
+          <div class="st"><div class="ic">🏆</div><div class="n">23</div><div class="l">Partidos</div></div>
+          <div class="st"><div class="ic">⚡</div><div class="n">72%</div><div class="l">Ganados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="style">
+      <div class="style-tag"><span class="nn">D</span><h3>Neo-Brutalist</h3><p>Deportivo descarado. Bordes duros, sombras marcadas, alto contraste.</p></div>
+      <div class="demo sD">
+        <div class="ttl">Tu pizarra</div>
+        <div class="stats">
+          <div class="st"><div class="n">14</div><div class="l">Tácticas</div></div>
+          <div class="st"><div class="n">6</div><div class="l">Rivales</div></div>
+          <div class="st"><div class="n">23</div><div class="l">Partidos</div></div>
+          <div class="st"><div class="n">72%</div><div class="l">Ganados</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

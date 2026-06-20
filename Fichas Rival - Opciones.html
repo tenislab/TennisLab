@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Fichas de Rival — Opciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F0E0D; --ink-2:#1A1715; --ink-3:#221E1A; --ink-4:#2E2922;
+  --line:rgba(255,236,222,.10); --line-2:rgba(255,236,222,.18);
+  --txt:#F6F1EB; --txt-2:#AEA298; --txt-3:#7A6F65;
+  --ball:#F26C36; --ball-dim:#CC5C2B; --ball-ink:#190A02; --mint:#36D9B0;
+  --clay:#C4663E; --hard:#2E72B8; --grass:#3F8348; --indoor:#5B53A6;
+  --win:#46D6A6; --loss:#FF5B5B;
+  --r-s:11px; --r-m:18px; --r-l:28px;
+  --head:'Archivo',sans-serif; --body:'Hanken Grotesk',sans-serif; --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0A0908;color:var(--txt);font-family:var(--body);-webkit-font-smoothing:antialiased;padding:48px clamp(20px,5vw,72px) 120px}
+.page-h{max-width:1180px;margin:0 auto 8px}
+.page-h h1{font-family:var(--head);font-weight:900;font-size:30px;letter-spacing:-.01em}
+.page-h p{color:var(--txt-2);font-size:15px;margin-top:8px;max-width:620px;line-height:1.5}
+.opt{max-width:1180px;margin:54px auto 0}
+.opt-head{display:flex;align-items:baseline;gap:14px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.opt-tag{font-family:var(--mono);font-weight:700;font-size:12px;color:var(--ball-ink);background:var(--ball);padding:4px 10px;border-radius:99px}
+.opt-head h2{font-family:var(--head);font-weight:800;font-size:21px}
+.opt-head .desc{color:var(--txt-3);font-size:13.5px;margin-left:auto;font-family:var(--mono)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px}
+.grid.rows{grid-template-columns:1fr;gap:10px}
+svg.ic{width:1em;height:1em;display:block}
+
+/* shared avatar */
+.av{flex:none;display:grid;place-items:center;font-family:var(--head);font-weight:900;color:#15120e;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+
+/* ============ OPTION A — SCOREBOARD ============ */
+.ca{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;transition:.16s;cursor:pointer;display:flex;flex-direction:column}
+.ca:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.ca-strip{height:4px}
+.ca-body{padding:18px}
+.ca-top{display:flex;align-items:center;gap:13px}
+.ca .av{width:52px;height:52px;border-radius:14px;font-size:19px}
+.ca-id{flex:1;min-width:0}
+.ca-id h3{font-family:var(--head);font-weight:800;font-size:18px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-id .sub{font-family:var(--mono);font-size:11px;color:var(--txt-3);letter-spacing:.03em;margin-top:3px}
+.ca-rank{font-family:var(--mono);font-weight:700;font-size:11px;background:var(--ink-4);color:var(--txt-2);padding:4px 9px;border-radius:99px;flex:none}
+.ca-score{display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.ca-rec{font-family:var(--head);font-weight:900;line-height:1;display:flex;align-items:baseline;gap:4px}
+.ca-rec .w{font-size:34px;color:var(--win)}
+.ca-rec .x{font-size:22px;color:var(--txt-3)}
+.ca-rec .l{font-size:34px;color:var(--loss)}
+.ca-rec small{display:block;font-family:var(--mono);font-weight:400;font-size:9.5px;color:var(--txt-3);letter-spacing:.08em;text-transform:uppercase;margin-top:5px}
+.ca-ring{margin-left:auto;width:56px;height:56px;position:relative;flex:none}
+.ca-ring svg{transform:rotate(-90deg)}
+.ca-ring b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:15px}
+.ca-foot{display:flex;align-items:center;gap:10px;margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--txt-2)}
+.ca-foot .pill{display:flex;align-items:center;gap:6px;background:var(--ink-3);border:1px solid var(--line);padding:6px 11px;border-radius:99px}
+.ca-foot .pill b{color:var(--ball)}
+.ca-foot .pill svg{width:13px;height:13px;color:var(--txt-3)}
+
+/* ============ OPTION B — DOSSIER ============ */
+.cb{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;transition:.16s;cursor:pointer}
+.cb:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.cb-hd{padding:18px 18px 16px;position:relative;display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(242,108,54,.16),rgba(242,108,54,0) 70%)}
+.cb .av{width:54px;height:54px;border-radius:50%;font-size:19px;box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+.cb-id h3{font-family:var(--head);font-weight:800;font-size:19px;line-height:1.05}
+.cb-id .sub{font-family:var(--mono);font-size:11px;color:var(--txt-2);letter-spacing:.03em;margin-top:4px;display:flex;align-items:center;gap:6px}
+.cb-threat{position:absolute;top:16px;right:16px;text-align:right}
+.cb-threat .lab{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3)}
+.cb-threat .dots{display:flex;gap:3px;margin-top:5px;justify-content:flex-end}
+.cb-threat i{width:7px;height:7px;border-radius:2px;background:var(--ink-4)}
+.cb-threat i.on{background:var(--ball)}
+.cb-tags{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.cb-tag{display:flex;align-items:center;gap:10px}
+.cb-tag .k{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);width:52px;flex:none}
+.cb-tag .v{font-weight:600;font-size:13.5px}
+.cb-tag.good .v{color:var(--win)} .cb-tag.bad .v{color:var(--loss)}
+.cb-foot{display:flex;border-top:1px solid var(--line)}
+.cb-foot button{flex:1;background:none;border:none;border-right:1px solid var(--line);color:var(--txt-2);font-family:var(--mono);font-size:12px;font-weight:700;padding:13px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:.14s}
+.cb-foot button:last-child{border-right:none;flex:none;width:52px}
+.cb-foot button:hover{background:var(--ink-3);color:var(--txt)}
+.cb-foot button svg{width:15px;height:15px}
+.cb-foot .main b{color:var(--ball)}
+
+/* ============ OPTION C — COMPACT ROW ============ */
+.cc{display:flex;align-items:center;gap:15px;background:var(--ink-2);border:1px solid var(--line);border-radius:14px;padding:13px 16px;transition:.14s;cursor:pointer}
+.cc:hover{border-color:var(--line-2);background:var(--ink-3)}
+.cc .av{width:44px;height:44px;border-radius:12px;font-size:16px}
+.cc-id{min-width:0;flex:1}
+.cc-id h3{font-family:var(--head);font-weight:800;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-id .sub{font-family:var(--mono);font-size:10.5px;color:var(--txt-3);margin-top:2px;display:flex;gap:7px;align-items:center}
+.cc-id .sub .sp{color:var(--txt-2)}
+.cc-stat{text-align:center;flex:none}
+.cc-stat .n{font-family:var(--head);font-weight:800;font-size:17px;line-height:1}
+.cc-stat .n.win{color:var(--win)} .cc-stat .n.acc{color:var(--ball)}
+.cc-stat .lab{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);margin-top:4px}
+.cc-div{width:1px;align-self:stretch;background:var(--line);margin:2px 0}
+.cc-chev{color:var(--txt-3);flex:none}
+.cc-chev svg{width:18px;height:18px}
+
+/* ============ OPTION D — STAT SPLIT ============ */
+.cd{display:flex;background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;transition:.16s;cursor:pointer}
+.cd:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.cd-side{width:120px;flex:none;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:12px;background:linear-gradient(180deg,var(--ink-3),var(--ink-2));border-right:1px solid var(--line);text-align:center}
+.cd .av{width:60px;height:60px;border-radius:50%;font-size:21px}
+.cd-side h3{font-family:var(--head);font-weight:800;font-size:15px;line-height:1.15}
+.cd-side .sub{font-family:var(--mono);font-size:10px;color:var(--txt-3)}
+.cd-side .rank{margin-top:auto;font-family:var(--mono);font-weight:700;font-size:10.5px;color:var(--ball);background:rgba(242,108,54,.12);padding:4px 10px;border-radius:99px}
+.cd-main{flex:1;min-width:0;padding:16px 18px;display:flex;flex-direction:column;gap:13px}
+.cd-rec{display:flex;align-items:center;gap:8px}
+.cd-rec .seg{flex:1;height:8px;border-radius:99px;background:var(--loss);overflow:hidden;display:flex}
+.cd-rec .seg b{background:var(--win);height:100%;display:block}
+.cd-rec .lab{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--txt-2)}
+.cd-meter{display:flex;flex-direction:column;gap:4px}
+.cd-meter .row{display:flex;align-items:center;gap:9px}
+.cd-meter .k{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-3);width:46px;flex:none}
+.cd-meter .v{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-meter .v.good{color:var(--win)} .cd-meter .v.bad{color:var(--loss)}
+.cd-foot{margin-top:auto;display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--txt-2)}
+.cd-foot .tac b{color:var(--ball)}
+.cd-foot .spacer{flex:1}
+.cd-foot .ib{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:none;color:var(--txt-3);display:grid;place-items:center;cursor:pointer}
+.cd-foot .ib:hover{color:var(--txt);border-color:var(--line-2)}
+.cd-foot .ib svg{width:14px;height:14px}
+
+@media(max-width:560px){
+  .cd{flex-direction:column}
+  .cd-side{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--line);text-align:left;align-items:center}
+  .cd-side .rank{margin-top:0;margin-left:auto}
+}
+</style>
+</head>
+<body>
+<div class="page-h">
+  <h1>Fichas de rival — 4 direcciones</h1>
+  <p>Mismos datos, cuatro maquetaciones. Todas usan tu paleta (terracota / charcoal) y tipos actuales. Dime cuál(es) te gustan y la dejo montada en la app.</p>
+</div>
+
+<!-- =================== OPTION A =================== -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-tag">A</span><h2>Marcador</h2><span class="desc">récord grande + aro de % victorias</span></div>
+  <div class="grid" id="gridA"></div>
+</section>
+
+<!-- =================== OPTION B =================== -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-tag">B</span><h2>Dossier de scouting</h2><span class="desc">cabecera con color + nivel de amenaza + puntos clave</span></div>
+  <div class="grid" id="gridB"></div>
+</section>
+
+<!-- =================== OPTION C =================== -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-tag">C</span><h2>Fila compacta</h2><span class="desc">densa, ideal con muchos rivales</span></div>
+  <div class="grid rows" id="gridC"></div>
+</section>
+
+<!-- =================== OPTION D =================== -->
+<section class="opt">
+  <div class="opt-head"><span class="opt-tag">D</span><h2>Panel dividido</h2><span class="desc">identidad a un lado, medidores al otro</span></div>
+  <div class="grid" id="gridD"></div>
+</section>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="400" height="400" rx="64" fill="#1A1715"/>
+    <rect x="90" y="120" width="220" height="70" rx="16" fill="#F26C36"/>
+    <rect x="90" y="210" width="220" height="70" rx="16" fill="#2E2922"/>
+  </svg>
+</template>
+
+<script>
+const IC = {
+  ball:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M4 7c4 2 12 2 16 0M4 17c4-2 12-2 16 0"/></svg>',
+  edit:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  trash:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+  chev:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>',
+  loc:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+};
+const surfCol = {clay:'#C4663E',hard:'#2E72B8',grass:'#3F8348',indoor:'#5B53A6'};
+const rivals = [
+  {name:'Iván Pacheco', sport:'tennis', hand:'right', cat:'Abs. Provincial', rank:'#142', best:'Derecha cruzada', weak:'Revés alto', style:'Agresivo de fondo', w:4, l:1, tac:5, surf:'clay', threat:4, init:'IP', color:'#E8B04B', loc:'CT Granada'},
+  {name:'Díaz / Soler', sport:'padel', hand:'right', cat:'2ª Categoría', rank:'#58', best:'Vibora cruzada', weak:'Bandeja defensiva', style:'Pareja agresiva', w:1, l:2, tac:3, surf:'indoor', threat:3, init:'DS', color:'#6FB6E0', loc:'Pádel Indoor BCN'},
+  {name:'Marc Vidal', sport:'tennis', hand:'left', cat:'Sub-18', rank:null, best:'Saque exterior', weak:'Dejada', style:'Zurdo táctico', w:2, l:3, tac:2, surf:'hard', threat:2, init:'MV', color:'#7FC99A', loc:'Club Tenis Sabadell'},
+];
+function ring(pct,col){
+  const r=24,c=2*Math.PI*r,off=c*(1-pct/100);
+  return `<svg width="56" height="56" viewBox="0 0 56 56"><circle cx="28" cy="28" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/><circle cx="28" cy="28" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg>`;
+}
+function dots(n){let s='';for(let i=0;i<5;i++)s+=`<i class="${i<n?'on':''}"></i>`;return s;}
+
+rivals.forEach(r=>{
+  const played=r.w+r.l, pct=played?Math.round(r.w/played*100):0;
+  const sicon = r.sport==='padel'?'🥎':'🎾';
+  const hand = r.hand==='left'?'Zurdo':'Diestro';
+  const sc=surfCol[r.surf];
+
+  // A — scoreboard
+  document.getElementById('gridA').insertAdjacentHTML('beforeend',`
+    <article class="ca">
+      <div class="ca-strip" style="background:${sc}"></div>
+      <div class="ca-body">
+        <div class="ca-top">
+          <span class="av" style="width:52px;height:52px;border-radius:14px;background:${r.color}">${r.init}</span>
+          <div class="ca-id"><h3>${r.name}</h3><div class="sub">${sicon} ${hand} · ${r.cat}</div></div>
+          ${r.rank?`<span class="ca-rank">${r.rank}</span>`:''}
+        </div>
+        <div class="ca-score">
+          <div class="ca-rec"><span class="w">${r.w}</span><span class="x">–</span><span class="l">${r.l}</span><small>V&nbsp;–&nbsp;D</small></div>
+          <div class="ca-ring">${ring(pct, pct>=50?'#46D6A6':'#F26C36')}<b style="color:${pct>=50?'#46D6A6':'#F26C36'}">${pct}%</b></div>
+        </div>
+        <div class="ca-foot">
+          <span class="pill">${IC.ball}<b>${r.tac}</b> tácticas</span>
+          <span class="pill">${IC.loc}${r.loc}</span>
+        </div>
+      </div>
+    </article>`);
+
+  // B — dossier
+  document.getElementById('gridB').insertAdjacentHTML('beforeend',`
+    <article class="cb">
+      <div class="cb-hd">
+        <span class="av" style="background:${r.color}">${r.init}</span>
+        <div class="cb-id"><h3>${r.name}</h3><div class="sub">${sicon} ${hand} · ${r.cat}</div></div>
+        <div class="cb-threat"><div class="lab">Amenaza</div><div class="dots">${dots(r.threat)}</div></div>
+      </div>
+      <div class="cb-tags">
+        <div class="cb-tag good"><span class="k">Pega</span><span class="v">${r.best}</span></div>
+        <div class="cb-tag bad"><span class="k">Falla</span><span class="v">${r.weak}</span></div>
+        <div class="cb-tag"><span class="k">Estilo</span><span class="v">${r.style}</span></div>
+      </div>
+      <div class="cb-foot">
+        <button class="main">${IC.ball}<b>${r.tac}</b> tácticas</button>
+        <button>${IC.edit}</button>
+      </div>
+    </article>`);
+
+  // C — compact row
+  document.getElementById('gridC').insertAdjacentHTML('beforeend',`
+    <article class="cc">
+      <span class="av" style="background:${r.color}">${r.init}</span>
+      <div class="cc-id"><h3>${r.name}</h3><div class="sub"><span>${sicon} ${hand}</span><span class="sp">·</span><span>${r.cat}</span>${r.rank?`<span class="sp">·</span><span>${r.rank}</span>`:''}</div></div>
+      <div class="cc-stat"><div class="n win">${r.w}-${r.l}</div><div class="lab">Récord</div></div>
+      <div class="cc-div"></div>
+      <div class="cc-stat"><div class="n acc">${pct}%</div><div class="lab">Victorias</div></div>
+      <div class="cc-div"></div>
+      <div class="cc-stat"><div class="n">${r.tac}</div><div class="lab">Tácticas</div></div>
+      <span class="cc-chev">${IC.chev}</span>
+    </article>`);
+
+  // D — stat split
+  document.getElementById('gridD').insertAdjacentHTML('beforeend',`
+    <article class="cd">
+      <div class="cd-side">
+        <span class="av" style="background:${r.color}">${r.init}</span>
+        <div><h3>${r.name}</h3><div class="sub">${sicon} ${hand}</div></div>
+        <span class="rank">${r.rank||r.cat}</span>
+      </div>
+      <div class="cd-main">
+        <div class="cd-rec"><div class="seg"><b style="width:${pct}%"></b></div><span class="lab">${r.w}V–${r.l}D</span></div>
+        <div class="cd-meter">
+          <div class="row"><span class="k">Pega</span><span class="v good">${r.best}</span></div>
+          <div class="row"><span class="k">Falla</span><span class="v bad">${r.weak}</span></div>
+          <div class="row"><span class="k">Estilo</span><span class="v">${r.style}</span></div>
+        </div>
+        <div class="cd-foot">
+          <span class="tac">${IC.ball}&nbsp;<b>${r.tac}</b> tácticas</span>
+          <span class="spacer"></span>
+          <button class="ib">${IC.edit}</button>
+          <button class="ib">${IC.trash}</button>
+        </div>
+      </div>
+    </article>`);
+});
+</script>
+</body>
+</html>

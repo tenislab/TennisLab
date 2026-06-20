@@ -1,0 +1,15 @@
+# dependencias
+node_modules/
+
+# variables de entorno / secretos (por si acaso)
+.env
+.env.*
+*.key
+
+# sistema
+.DS_Store
+Thumbs.db
+
+# supabase local
+supabase/.branches
+supabase/.temp

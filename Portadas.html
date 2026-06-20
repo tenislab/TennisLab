@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Conceptos de portada — TennisLab</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--ink:#0F0E0D;--ink2:#1A1715;--ink3:#221E1A;--line:rgba(255,236,222,.1);--line2:rgba(255,236,222,.18);
+    --txt:#F6F1EB;--t2:#AEA298;--t3:#7A6F65;--cl:#F26C36;--mint:#36D9B0;--mono:'Space Mono',monospace;--head:'Archivo',sans-serif;--body:'Hanken Grotesk',sans-serif}
+  body{background:#000;color:var(--txt);font-family:var(--body);padding:26px clamp(12px,4vw,40px) 80px}
+  .ph{font-family:var(--head);font-weight:900;font-size:clamp(20px,4vw,30px);text-transform:uppercase;letter-spacing:-.02em}
+  .psub{font-family:var(--mono);color:#8a8a8a;font-size:12px;letter-spacing:.1em;margin:6px 0 26px;text-transform:uppercase}
+  .wrap{display:flex;flex-direction:column;gap:26px}
+  .concept{border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;background:var(--ink)}
+  .ctag{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#141414;border-bottom:1px solid rgba(255,255,255,.08)}
+  .ctag .nn{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--cl);letter-spacing:.1em}
+  .ctag h3{font-family:var(--head);font-weight:800;font-size:18px}
+  .ctag p{color:#9a9a9a;font-size:13px;margin-left:auto;text-align:right;max-width:52%}
+  .demo{padding:22px clamp(14px,3vw,28px) 28px}
+  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3)}
+
+  /* shared court svg sizing */
+  .court{display:block;width:100%;height:auto;border-radius:14px}
+
+  /* ============ 1 · LIVE COURT HERO ============ */
+  .c1{background:radial-gradient(120% 90% at 80% 0,rgba(242,108,54,.16),transparent 55%),var(--ink)}
+  .c1 .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+  .c1 .ttl{font-family:var(--head);font-weight:900;font-size:34px;text-transform:uppercase;letter-spacing:-.02em;line-height:.9}
+  .c1 .ttl span{color:var(--cl)}
+  .c1 .live{font-family:var(--mono);font-size:10px;color:var(--mint);border:1px solid rgba(54,217,176,.4);background:rgba(54,217,176,.1);padding:5px 10px;border-radius:6px;letter-spacing:.1em}
+  .c1 .hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;align-items:stretch}
+  .c1 .court-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0c0b0a}
+  .c1 .ovl{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:#fff;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);padding:5px 10px;border-radius:7px}
+  .c1 .side{display:flex;flex-direction:column;gap:10px}
+  .c1 .sst{flex:1;background:linear-gradient(150deg,var(--ink3),var(--ink2));border:1px solid var(--line);border-left:3px solid var(--cl);border-radius:12px;padding:14px;display:flex;flex-direction:column;justify-content:center}
+  .c1 .sst .n{font-family:var(--mono);font-weight:700;font-size:28px}
+  .c1 .sst:last-child{border-left-color:var(--mint)}.c1 .sst:last-child .n{color:var(--mint)}
+  .c1 .sst .l{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:4px}
+
+  /* ============ 2 · NEXT-MATCH HERO ============ */
+  .c2 .nm{position:relative;border-radius:20px;overflow:hidden;padding:26px;background:
+    linear-gradient(135deg,rgba(242,108,54,.22),rgba(242,108,54,.04)),var(--ink2);
+    border:1px solid rgba(242,108,54,.35);margin-bottom:14px}
+  .c2 .nm::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,var(--cl),transparent 70%);opacity:.22}
+  .c2 .nm .k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cl);font-weight:700}
+  .c2 .nm h2{font-family:var(--head);font-weight:900;font-size:clamp(28px,5vw,44px);text-transform:uppercase;letter-spacing:-.02em;margin:10px 0 4px}
+  .c2 .nm .meta{color:var(--t2);font-size:14px}
+  .c2 .nm .cd{position:absolute;right:26px;top:50%;transform:translateY(-50%);text-align:center}
+  .c2 .nm .cd b{font-family:var(--mono);font-weight:700;font-size:60px;line-height:1;display:block}
+  .c2 .nm .cd span{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:.1em}
+  .c2 .row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .c2 .row .b{background:var(--ink2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .c2 .row .b .n{font-family:var(--mono);font-weight:700;font-size:24px}
+  .c2 .row .b .l{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:4px}
+
+  /* ============ 3 · DATA-VIZ HERO ============ */
+  .c3 .grid{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;background:linear-gradient(150deg,var(--ink3),var(--ink2));border:1px solid var(--line);border-radius:20px;padding:24px}
+  .c3 .ring{position:relative;width:150px;height:150px;flex:none}
+  .c3 .ring svg{transform:rotate(-90deg)}
+  .c3 .ring .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .c3 .ring .ctr b{font-family:var(--mono);font-weight:700;font-size:34px}
+  .c3 .ring .ctr span{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase}
+  .c3 .bars{display:flex;flex-direction:column;gap:13px;flex:1}
+  .c3 .bar .lab{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--t2)}
+  .c3 .bar .lab b{color:var(--txt);font-family:var(--mono)}
+  .c3 .track{height:9px;border-radius:99px;background:var(--ink);overflow:hidden}
+  .c3 .fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cl),#ff8f5e)}
+  .c3 .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .c3 .mini .m{background:var(--ink2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .c3 .mini .m .n{font-family:var(--mono);font-weight:700;font-size:22px}
+  .c3 .mini .m .l{font-family:var(--mono);font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+
+  @media(max-width:680px){.c1 .hero{grid-template-columns:1fr}.c2 .nm .cd{position:static;transform:none;text-align:left;margin-top:14px}.c2 .row,.c3 .mini{grid-template-columns:repeat(2,1fr)}.c3 .grid{grid-template-columns:1fr;justify-items:center}}
+</style>
+</head>
+<body>
+<div class="ph">3 portadas con gancho</div>
+<div class="psub">Misma app · dime el número que más te entra por los ojos</div>
+
+<div class="wrap">
+
+  <!-- 1 -->
+  <div class="concept">
+    <div class="ctag"><span class="nn">1</span><h3>Live Court</h3><p>La pista animada manda. Una jugada en bucle como protagonista + stats al lado.</p></div>
+    <div class="demo c1">
+      <div class="top">
+        <div class="ttl">Tu <span>laboratorio</span></div>
+        <span class="live">● EN VIVO</span>
+      </div>
+      <div class="hero">
+        <div class="court-wrap">
+          <svg class="court" id="court1" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid slice"></svg>
+          <div class="ovl">Saque y subida · 4 golpes</div>
+        </div>
+        <div class="side">
+          <div class="sst"><div class="n">14</div><div class="l">Tácticas</div></div>
+          <div class="sst"><div class="n">23</div><div class="l">Partidos</div></div>
+          <div class="sst"><div class="n">72%</div><div class="l">Ganados</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="concept">
+    <div class="ctag"><span class="nn">2</span><h3>Próximo partido HÉROE</h3><p>Lo primero: tu siguiente rival a lo grande con cuenta atrás. Urgencia y foco.</p></div>
+    <div class="demo c2">
+      <div class="nm">
+        <div class="k">▸ Próximo partido</div>
+        <h2>Ivan Pacheco</h2>
+        <div class="meta">Sábado 21 junio · Open Local · Tierra batida</div>
+        <div class="cd"><b>3</b><span>DÍAS</span></div>
+      </div>
+      <div class="row">
+        <div class="b"><div class="n">14</div><div class="l">Tácticas</div></div>
+        <div class="b"><div class="n">6</div><div class="l">Rivales</div></div>
+        <div class="b"><div class="n">23</div><div class="l">Partidos</div></div>
+        <div class="b"><div class="n" style="color:var(--mint)">72%</div><div class="l">Ganados</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="concept">
+    <div class="ctag"><span class="nn">3</span><h3>Data Viz</h3><p>Cuadro de mando tipo app de rendimiento: anillo grande de % y barras por superficie.</p></div>
+    <div class="demo c3">
+      <div class="grid">
+        <div class="ring">
+          <svg width="150" height="150">
+            <circle cx="75" cy="75" r="64" fill="none" stroke="#221E1A" stroke-width="13"/>
+            <circle cx="75" cy="75" r="64" fill="none" stroke="#F26C36" stroke-width="13" stroke-linecap="round"
+              stroke-dasharray="402" stroke-dashoffset="113"/>
+          </svg>
+          <div class="ctr"><b>72%</b><span>Victorias</span></div>
+        </div>
+        <div class="bars">
+          <div class="bar"><div class="lab"><span>Tierra</span><b>80%</b></div><div class="track"><div class="fill" style="width:80%"></div></div></div>
+          <div class="bar"><div class="lab"><span>Dura</span><b>65%</b></div><div class="track"><div class="fill" style="width:65%"></div></div></div>
+          <div class="bar"><div class="lab"><span>Hierba</span><b>50%</b></div><div class="track"><div class="fill" style="width:50%"></div></div></div>
+        </div>
+      </div>
+      <div class="mini">
+        <div class="m"><div class="n">14</div><div class="l">Tácticas</div></div>
+        <div class="m"><div class="n">6</div><div class="l">Rivales</div></div>
+        <div class="m"><div class="n">23</div><div class="l">Partidos</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// draw a clay court with a play + animated ball for concept 1
+(function(){
+  const svg = document.getElementById('court1');
+  const W=1000,H=560;
+  // court drawn horizontally-ish; simple clay
+  let s = '';
+  s += `<rect width="${W}" height="${H}" fill="#A8512E"/>`;
+  s += `<rect x="120" y="70" width="${W-240}" height="${H-140}" fill="#C4663E"/>`;
+  const ln='stroke="#F2E6DC" stroke-width="3" fill="none"';
+  s += `<rect x="150" y="90" width="${W-300}" height="${H-180}" ${ln}/>`;
+  s += `<line x1="${W/2}" y1="90" x2="${W/2}" y2="${H-90}" ${ln}/>`;
+  s += `<line x1="320" y1="90" x2="320" y2="${H-90}" ${ln}/>`;
+  s += `<line x1="${W-320}" y1="90" x2="${W-320}" y2="${H-90}" ${ln}/>`;
+  s += `<line x1="320" y1="${H/2}" x2="${W-320}" y2="${H/2}" ${ln}/>`;
+  // players
+  s += `<circle cx="240" cy="${H/2-60}" r="20" fill="#D7F23A" stroke="rgba(0,0,0,.4)" stroke-width="3"/>`;
+  s += `<circle cx="760" cy="${H/2+50}" r="20" fill="#FF5B5B" stroke="rgba(0,0,0,.4)" stroke-width="3"/>`;
+  // trajectory
+  const path = `M240 ${H/2-60} Q500 120 760 ${H/2+50}`;
+  s += `<path id="traj" d="${path}" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="10 8" opacity=".85"/>`;
+  s += `<circle id="ball" r="9" fill="#fff"/>`;
+  svg.innerHTML = s;
+  const traj = svg.querySelector('#traj'), ball=svg.querySelector('#ball');
+  const len = traj.getTotalLength();
+  let start=null;
+  function frame(ts){ if(!start)start=ts; let p=((ts-start)%2600)/2000; if(p>1){ball.style.opacity=0;requestAnimationFrame(frame);return;} ball.style.opacity=1; const pt=traj.getPointAtLength(p*len); ball.setAttribute('cx',pt.x); ball.setAttribute('cy',pt.y); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

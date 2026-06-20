@@ -13,6 +13,10 @@
 <meta name="theme-color" content="#0F0E0D"/>
 <link rel="canonical" href="https://tenislab.github.io/TennisLab/"/>
 <link rel="icon" href="icon.svg" type="image/svg+xml"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-title" content="CourtLab"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 
 <!-- Open Graph / redes -->
 <meta property="og:type" content="website"/>
@@ -226,7 +230,7 @@
   <div class="wrap nav-in">
     <a class="brand" href="#top">
       <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="9" y="5" width="12" height="20" rx="1.6" fill="none" stroke="#E8703D" stroke-width="1.8"/><line x1="9" y1="15" x2="21" y2="15" stroke="#E8703D" stroke-width="1.8"/><line x1="15" y1="5" x2="15" y2="25" stroke="#E8703D" stroke-width="1.2" opacity=".6"/></svg>
-      Tennis Lab
+      CourtLab
     </a>
     <div class="nav-links">
       <a href="#features">Funciones</a>
@@ -390,13 +394,13 @@
     <div class="foot-links">
       <a href="privacidad.html">Privacidad</a>
       <a href="terminos.html">Términos</a>
-      <a href="/cdn-cgi/l/email-protection#81f2eef1eef3f5e4aff5e4efefe8f2ede0e3c1e6ece0e8edafe2eeec">Contacto</a>
+      <a href="mailto:soporte.tennislab@gmail.com">Contacto</a>
       <a href="app.html">Entrar a la app</a>
     </div>
   </div>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
   document.getElementById('yr').textContent = new Date().getFullYear();
 
   // reveal on scroll
@@ -478,6 +482,12 @@
       loop();
     }
   })();
+</script>
+<script>
+  // PWA: registra el service worker para instalación + offline
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
 </script>
 </body>
 </html>
