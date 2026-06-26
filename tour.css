@@ -1,0 +1,175 @@
+/* ============================================================
+   CourtLab — Overlays del recorrido 3D + precios "carta"
+   Se carga DESPUÉS de styles.css
+   ============================================================ */
+
+/* canvas 3D ocupa todo el fondo del recorrido */
+#gl{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;
+  transition:opacity .25s linear}
+html.no-gl #gl{display:none}
+
+/* pista de scroll que mueve la cámara (4 actos) */
+.tour-track{position:relative;z-index:1}
+.act-spacer{height:170vh}
+#live{height:185vh} /* el club: cierre con dwell, sin quedarse clavado */
+@media(max-width:760px){.act-spacer{height:150vh}#live{height:210vh}}
+
+/* capa de paneles fijos */
+.tour-overlays{position:fixed;inset:0;z-index:5;pointer-events:none}
+.act{position:fixed;inset:0;opacity:0;will-change:opacity;display:flex}
+.act.is-on{opacity:1}
+.act .inner{will-change:transform}
+.act .inner{width:100%;max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,64px);
+  display:flex;align-items:center;min-height:100vh}
+
+/* ---- scrim para legibilidad sobre cielo claro ---- */
+.act::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.0;transition:opacity .5s}
+.act-1::before{opacity:1;background:radial-gradient(120% 90% at 22% 60%,rgba(12,22,30,.62),transparent 60%)}
+.act-4::before{opacity:1;background:linear-gradient(180deg,rgba(12,22,30,.55),transparent 35%,transparent 70%,rgba(12,22,30,.45))}
+
+/* glass panel base */
+.glass{pointer-events:auto;background:rgba(20,30,38,.58);
+  backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
+  border:1px solid rgba(255,255,255,.16);border-radius:20px;
+  box-shadow:0 24px 70px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);
+  color:#F4F1E9}
+
+/* ============================ ACT 1 · Pista ============================ */
+.act-1 .inner{flex-direction:column;justify-content:center;align-items:flex-start;gap:0}
+.hero-copy{max-width:600px;pointer-events:auto;text-shadow:0 2px 26px rgba(0,0,0,.45)}
+.hero-copy .kicker{color:#FFD9C2}
+.hero-copy h1{font-family:'Oswald',sans-serif;font-weight:700;line-height:.94;
+  font-size:clamp(54px,9vw,116px);letter-spacing:-.01em;margin:.18em 0 .28em;text-transform:uppercase}
+.hero-copy h1 .o{color:var(--accent,#F25D2A)}
+.hero-copy .lead{font-size:clamp(16px,2vw,21px);max-width:30ch;color:#E9E4DA;line-height:1.5}
+.hero-copy .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}
+.hero-copy .court-note{margin-top:18px;font-size:13.5px;color:#cbd6dd;opacity:.9}
+.scroll-cue{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11px;
+  letter-spacing:.32em;text-transform:uppercase;color:#dfeaf0;opacity:.85;pointer-events:none}
+.scroll-cue .mouse{width:22px;height:34px;border:2px solid rgba(255,255,255,.7);border-radius:12px;position:relative}
+.scroll-cue .mouse::after{content:"";position:absolute;top:6px;left:50%;width:3px;height:7px;background:#fff;border-radius:2px;transform:translateX(-50%);animation:cueDrop 1.5s infinite}
+@keyframes cueDrop{0%{opacity:0;transform:translate(-50%,0)}40%{opacity:1}80%{opacity:0;transform:translate(-50%,10px)}}
+
+/* ============================ ACT 2 · Salón / Scouting ============================ */
+.act-2 .inner{justify-content:flex-end}
+.scout{width:min(420px,92vw);padding:22px 22px 20px}
+.scout-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.scout-head .ava{width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#F25D2A,#b8401d);
+  display:grid;place-items:center;font-family:'Oswald';font-weight:700;font-size:19px;color:#fff;flex:none}
+.scout-head .who{flex:1;line-height:1.15}
+.scout-head .who b{font-size:18px;display:block}
+.scout-head .who span{font-size:12.5px;color:#aebcc6}
+.scout-head .h2h{font-size:12px;font-weight:700;padding:5px 9px;border-radius:8px;
+  background:rgba(94,209,143,.16);color:#79e0a6;border:1px solid rgba(94,209,143,.3);white-space:nowrap}
+
+.gauge{position:relative;display:flex;flex-direction:column;align-items:center;margin:8px 0 4px}
+.gauge svg{width:200px;height:112px;overflow:visible}
+.gauge .g-track{fill:none;stroke:rgba(255,255,255,.13);stroke-width:14;stroke-linecap:round}
+.gauge .g-fill{fill:none;stroke:url(#ggrad);stroke-width:14;stroke-linecap:round;
+  transition:stroke-dashoffset .7s cubic-bezier(.2,.8,.2,1)}
+.gauge-val{position:absolute;top:54px;left:50%;transform:translateX(-50%);
+  font-family:'Oswald';font-weight:700;font-size:42px;line-height:1}
+.gauge-val small{font-size:18px;opacity:.7}
+.gauge-cap{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#aebcc6;margin-top:2px}
+
+.surf{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0 14px}
+.surf button{pointer-events:auto;cursor:pointer;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);color:#dbe4ea;border-radius:11px;padding:9px 4px;
+  font-size:12.5px;font-weight:600;font-family:inherit;transition:.18s;display:flex;
+  flex-direction:column;align-items:center;gap:4px}
+.surf button .dot{width:11px;height:11px;border-radius:50%}
+.surf button[data-s="clay"] .dot{background:#c2603a}
+.surf button[data-s="hard"] .dot{background:#2f7fb5}
+.surf button[data-s="grass"] .dot{background:#3f8f54}
+.surf button[data-s="indoor"] .dot{background:#8a6bd9}
+.surf button:hover{background:rgba(255,255,255,.12)}
+.surf button.on{border-color:var(--accent,#F25D2A);background:rgba(242,93,42,.16);color:#fff;box-shadow:0 4px 16px rgba(242,93,42,.25)}
+
+.sw{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sw .s{border-radius:12px;padding:10px 11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.sw .lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:4px;color:#aebcc6}
+.sw .lab::before{content:"";width:7px;height:7px;border-radius:50%}
+.sw .good .lab::before{background:#5ED18F}
+.sw .bad .lab::before{background:#F25D2A}
+.sw .s b{font-size:14.5px;font-weight:700}
+
+/* ============================ ACT 3 · Tele / Plan ============================ */
+.act-3 .inner{justify-content:flex-end}
+.plan{width:min(400px,92vw);padding:20px 22px}
+.plan .when{font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#FFD9C2}
+.plan h3{font-family:'Oswald';font-weight:600;font-size:24px;margin:3px 0 14px}
+.plan .vs{display:flex;align-items:center;justify-content:center;gap:14px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:13px;padding:12px;margin-bottom:14px}
+.plan .vs span{font-weight:700;font-size:16px}
+.plan .vs b{font-family:'Oswald';color:var(--accent,#F25D2A);font-size:14px}
+.plan .lab{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#aebcc6}
+.plan ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
+.plan li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.35}
+.plan li::before{content:"";flex:none;width:20px;height:20px;border-radius:7px;margin-top:1px;
+  background:rgba(242,93,42,.18) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25D2A' stroke-width='3'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/13px no-repeat}
+
+/* ============================ ACT 4 · Balcón / Club ============================ */
+.act-4 .inner{flex-direction:column;justify-content:space-between;padding-top:96px;padding-bottom:54px;align-items:center;gap:0}
+.club-head{text-align:center;pointer-events:auto;text-shadow:0 2px 22px rgba(0,0,0,.5)}
+.club-head .kicker{justify-content:center;color:#FFD9C2}
+.club-head h2{font-family:'Oswald';font-weight:700;text-transform:uppercase;font-size:clamp(34px,6vw,64px);line-height:.95;margin-top:.18em}
+.clubcard{width:min(380px,92vw);padding:16px 18px}
+.clubcard .cc-t{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#aebcc6;margin-bottom:10px;display:flex;justify-content:space-between}
+.cc-row{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
+.cc-row .rk{width:24px;height:24px;border-radius:8px;background:rgba(255,255,255,.08);display:grid;place-items:center;font-family:'Oswald';font-weight:700;font-size:13px;flex:none}
+.cc-row.lead .rk{background:linear-gradient(145deg,#F25D2A,#b8401d);color:#fff}
+.cc-row span.nm{flex:1;font-weight:600;font-size:14.5px}
+.cc-row b{font-family:'Oswald';font-size:16px}
+.cc-row .loc{font-size:11.5px;color:#9fb0bb;font-weight:500}
+.clubcard .btn{width:100%;justify-content:center;margin-top:14px}
+
+/* ============================ PRECIOS · "La carta" ============================ */
+#pricing.s-sky{background:linear-gradient(180deg,#241712,#1a110d) !important}
+#pricing .sky{background:none !important}
+#pricing .stars{display:none !important}
+.carta-wrap{position:relative;z-index:2;max-width:780px;margin:0 auto;padding:clamp(60px,9vw,110px) 20px}
+.carta{background:linear-gradient(175deg,#f7efe0,#efe3cf);color:#2a2018;border-radius:8px;
+  padding:clamp(26px,4vw,46px);box-shadow:0 40px 90px rgba(0,0,0,.5),inset 0 0 0 1px rgba(140,110,70,.25);
+  position:relative;background-image:radial-gradient(circle at 20% 10%,rgba(255,255,255,.5),transparent 40%)}
+.carta::before{content:"";position:absolute;inset:10px;border:1px solid rgba(120,90,55,.35);border-radius:5px;pointer-events:none}
+.carta-head{text-align:center;margin-bottom:8px}
+.carta-head .men{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:#9a6b3e}
+.carta-head h2{font-family:'Oswald';font-weight:600;text-transform:uppercase;font-size:clamp(30px,5vw,52px);color:#2a2018;letter-spacing:.01em;line-height:1;margin:6px 0}
+.carta-head p{color:#7a614a;font-size:14.5px}
+.carta-rule{display:flex;align-items:center;gap:14px;color:#b08a55;margin:18px 0 6px}
+.carta-rule::before,.carta-rule::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,#c9a877,transparent)}
+.carta-rule svg{width:22px;height:22px}
+.carta-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,4vw,46px);margin-top:14px}
+.dish h3{font-family:'Oswald';font-weight:600;font-size:21px;color:#2a2018;display:flex;align-items:baseline;justify-content:space-between;gap:10px;text-transform:uppercase}
+.dish h3 .pr{color:#b8451d;white-space:nowrap}
+.dish h3 .pr small{font-size:13px;color:#9a6b3e}
+.dish .sub{font-size:12.5px;color:#8a6f55;margin:2px 0 12px;font-style:italic}
+.dish ul{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:8px}
+.dish li{display:flex;gap:9px;font-size:14px;color:#3a2c20;align-items:flex-start;line-height:1.35}
+.dish li svg{width:16px;height:16px;flex:none;margin-top:2px;color:#b8451d}
+.dish .btn{width:100%;justify-content:center}
+.carta .dish.feat{position:relative}
+.carta .dish.feat::before{content:"RECOMENDADO";position:absolute;top:-30px;right:0;font-size:10px;letter-spacing:.18em;
+  background:#b8451d;color:#f7efe0;padding:4px 10px;border-radius:6px;font-weight:700}
+.carta-foot{text-align:center;margin-top:22px;font-size:12.5px;color:#8a6f55;font-style:italic}
+.btn.btn-carta{background:#2a2018;color:#f7efe0;border:none}
+.btn.btn-carta:hover{background:#3a2c20}
+.btn.btn-cartaPrimary{background:#b8451d;color:#fff;border:none}
+.btn.btn-cartaPrimary:hover{background:#9a3815}
+@media(max-width:680px){.carta-grid{grid-template-columns:1fr;gap:28px}
+  .carta .dish.feat::before{position:static;display:inline-block;margin-bottom:8px}}
+
+/* ---- responsive overlays ---- */
+@media(max-width:760px){
+  .act-2 .inner,.act-3 .inner{align-items:flex-end;justify-content:center;padding-bottom:84px}
+  .act-4 .inner{padding-top:74px}
+  .scout,.plan,.clubcard{width:min(440px,94vw)}
+  .hero-copy h1{font-size:clamp(46px,13vw,72px)}
+  .act .inner{padding-left:18px;padding-right:18px}
+}
+@media(max-width:480px){
+  .gauge svg{width:170px;height:96px}
+  .gauge-val{top:46px;font-size:36px}
+  .surf button{font-size:11.5px}
+}
