@@ -1,46 +1,45 @@
-<!doctype html>
-<html lang="es"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Política de Privacidad — CourtLab</title>
-<style>
-body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0F0E0D;color:#E8E2DA;line-height:1.6;padding:40px 20px}
-.wrap{max-width:720px;margin:0 auto}
-h1{font-size:28px;color:#F26C36}h2{font-size:18px;margin-top:32px;color:#fff}
-p,li{color:#B9AFA4;font-size:15px}a{color:#F26C36}
-.note{background:#1A1715;border:1px solid rgba(255,236,222,.12);border-left:3px solid #F26C36;border-radius:10px;padding:14px 16px;font-size:13px;margin:24px 0}
-.muted{color:#7A6F65;font-size:13px}
-</style></head>
-<body><div class="wrap">
-<h1>Política de Privacidad</h1>
-<p class="muted">Última actualización: [FECHA] · CourtLab</p>
+-- ============================================================
+-- CourtLab — Actualización (tablón del club + vistas de tácticas)
+-- Pega TODO esto en: Supabase → SQL Editor → New query → Run
+-- Es seguro ejecutarlo varias veces (usa IF NOT EXISTS).
+-- ============================================================
 
-<div class="note">⚠️ PLANTILLA — Debes completar los campos entre [corchetes] y revisarla con un asesor legal antes de publicar. Esto no es asesoramiento jurídico.</div>
+-- 1) TABLÓN del club: aviso fijado por el entrenador, visible para todos
+alter table public.clubs add column if not exists notice    text;
+alter table public.clubs add column if not exists notice_at timestamptz;
 
-<h2>1. Responsable del tratamiento</h2>
-<p>El responsable de los datos es <b>CourtLab</b>, con domicilio en [DIRECCIÓN] y correo de contacto <a href="mailto:soporte.tennislab@gmail.com">soporte.tennislab@gmail.com</a>.</p>
+-- 2) VISTAS de tácticas: el entrenador ve quién vió cada jugada
+create table if not exists public.club_tactic_views (
+  club_id    uuid not null references public.clubs(id) on delete cascade,
+  tactic_id  uuid not null references public.club_tactics(id) on delete cascade,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  seen_at    timestamptz not null default now(),
+  primary key (tactic_id, user_id)
+);
 
-<h2>2. Qué datos recogemos</h2>
-<ul>
-<li><b>Cuenta:</b> correo electrónico y contraseña (cifrada) al registrarte.</li>
-<li><b>Contenido que creas:</b> tácticas, rivales, partidos, diario y objetivos.</li>
-<li><b>Pago:</b> gestionado por Stripe; nosotros no almacenamos datos de tu tarjeta.</li>
-<li><b>Uso:</b> datos técnicos básicos para que la app funcione y mejorar el servicio.</li>
-</ul>
+alter table public.club_tactic_views enable row level security;
 
-<h2>3. Para qué los usamos (base legal)</h2>
-<p>Prestarte el servicio (ejecución del contrato), gestionar tu suscripción, darte soporte y, con tu consentimiento, enviarte comunicaciones. No vendemos tus datos.</p>
+-- cada jugador registra/actualiza SU propia vista
+drop policy if exists "ctv insert own" on public.club_tactic_views;
+create policy "ctv insert own" on public.club_tactic_views
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "ctv update own" on public.club_tactic_views;
+create policy "ctv update own" on public.club_tactic_views
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-<h2>4. Conservación</h2>
-<p>Conservamos tus datos mientras tengas cuenta activa. Si la eliminas, se borran salvo obligaciones legales (p. ej. facturación).</p>
+-- cualquier miembro del club puede LEER las vistas de su club
+-- (así el entrenador ve los contadores; los jugadores también)
+drop policy if exists "ctv read club" on public.club_tactic_views;
+create policy "ctv read club" on public.club_tactic_views
+  for select using (
+    exists (
+      select 1 from public.club_members m
+      where m.club_id = club_tactic_views.club_id and m.user_id = auth.uid()
+    )
+  );
 
-<h2>5. Tus derechos (RGPD)</h2>
-<p>Puedes acceder, rectificar, suprimir, oponerte, limitar y portar tus datos escribiendo a <a href="mailto:soporte.tennislab@gmail.com">soporte.tennislab@gmail.com</a>. También puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
-
-<h2>6. Encargados / terceros</h2>
-<p>Usamos proveedores que tratan datos por nuestra cuenta: <b>Supabase</b> (base de datos/autenticación) y <b>Stripe</b> (pagos). Tienen sus propias garantías de seguridad y cumplimiento.</p>
-
-<h2>7. Datos en tu dispositivo</h2>
-<p>La app puede guardar datos localmente en tu navegador para funcionar sin conexión. Puedes borrarlos desde Ajustes o limpiando el navegador.</p>
-
-<p class="muted" style="margin-top:40px"><a href="index.html">← Volver a la app</a></p>
-</div></body></html>
+-- ============================================================
+-- LISTO. Esto es lo único obligatorio para las funciones nuevas
+-- de Modo Club. El recordatorio por email (Resend) es opcional:
+-- está en trial_reminder_cron.sql + la función trial-reminder.
+-- ============================================================

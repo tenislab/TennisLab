@@ -18,6 +18,10 @@ html.no-gl #gl{display:none}
 .tour-overlays{position:fixed;inset:0;z-index:5;pointer-events:none}
 .act{position:fixed;inset:0;opacity:0;will-change:opacity;display:flex}
 .act.is-on{opacity:1}
+/* inactive (invisible) acts must not capture taps — their children set pointer-events:auto,
+   which overrides the inline none tour.js puts on the .act, blocking the hero/nav on mobile.
+   Force the whole subtree off until the act is actually on screen. */
+.act:not(.is-on),.act:not(.is-on) *{pointer-events:none !important}
 .act .inner{will-change:transform}
 .act .inner{width:100%;max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,64px);
   display:flex;align-items:center;min-height:100vh}

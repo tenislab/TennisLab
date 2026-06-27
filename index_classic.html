@@ -1,0 +1,128 @@
+-- ============================================================
+-- CourtLab — LIGA DE CLUBES (competición ciudad / país / mundo)
+-- Ejecutar en: Supabase → SQL Editor → New query → Run
+-- DESPUÉS de club_schema.sql y club_plan_schema.sql
+-- ------------------------------------------------------------
+-- Modelo:
+--   clubs        → se le añaden city, country, crest, color
+--   club_points  → marcador público por club y temporada (ranking)
+--   club_point_log → registro antitrampas (tope diario por usuario)
+--   award_match_points() → RPC que suma puntos al ganar/jugar un partido
+-- ============================================================
+
+-- 1) Identidad geográfica del club ------------------------------
+alter table public.clubs add column if not exists city    text;
+alter table public.clubs add column if not exists country text;     -- código ISO: 'ES','FR'...
+alter table public.clubs add column if not exists crest   text;     -- emoji/inicial del escudo
+alter table public.clubs add column if not exists color   text;     -- color del club (hex)
+
+-- 2) Marcador público por club y temporada ----------------------
+create table if not exists public.club_points (
+  club_id    uuid not null references public.clubs(id) on delete cascade,
+  season     text not null,                         -- 'YYYY-MM'
+  points     int  not null default 0,
+  wins       int  not null default 0,
+  played     int  not null default 0,
+  name       text, city text, country text, crest text, color text,  -- copia para ranking rápido
+  updated_at timestamptz not null default now(),
+  primary key (club_id, season)
+);
+
+-- 3) Registro antitrampas (tope diario por usuario) -------------
+create table if not exists public.club_point_log (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  match_id   text,
+  day        date not null default current_date,
+  points     int  not null,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
+-- SEGURIDAD (RLS)
+-- ============================================================
+alter table public.club_points    enable row level security;
+alter table public.club_point_log enable row level security;
+
+-- el RANKING es público: cualquier usuario autenticado puede leerlo
+drop policy if exists cp_read on public.club_points;
+create policy cp_read on public.club_points for select
+  using (auth.role() = 'authenticated');
+-- nadie escribe directo: solo via la función award_match_points (security definer)
+
+-- el log solo lo ve su dueño
+drop policy if exists cpl_self on public.club_point_log;
+create policy cpl_self on public.club_point_log for select
+  using (user_id = auth.uid());
+
+-- ============================================================
+-- RPC: sumar puntos por un partido (idempotente + tope diario)
+--   p_outcome: 'win' | 'loss'
+--   p_bonus:   puntos extra (ej. ganar a rival mejor clasificado)
+-- ============================================================
+create or replace function public.award_match_points(
+  p_match_id text, p_outcome text, p_bonus int default 0)
+returns table(season text, points int)
+language plpgsql security definer set search_path = public as $$
+declare
+  v_member   public.club_members%rowtype;
+  v_club     public.clubs%rowtype;
+  v_season   text := to_char(now(), 'YYYY-MM');
+  v_pts      int;
+  v_today    int;
+  v_cap      int := 60;     -- tope de puntos al día por jugador
+begin
+  -- ¿pertenece el usuario a un club?
+  select * into v_member from public.club_members where user_id = auth.uid() limit 1;
+  if not found then return; end if;
+  select * into v_club from public.clubs where id = v_member.club_id;
+  if not found then return; end if;
+
+  -- ¿ya se contó este partido? → no duplicar
+  if exists (select 1 from public.club_point_log
+             where user_id = auth.uid() and match_id = p_match_id) then
+    return;
+  end if;
+
+  -- puntos: ganar=10, jugar=2  (+bonus)
+  v_pts := (case when p_outcome = 'win' then 10 else 2 end) + greatest(0, coalesce(p_bonus, 0));
+
+  -- tope diario
+  select coalesce(sum(points), 0) into v_today
+    from public.club_point_log where user_id = auth.uid() and day = current_date;
+  if v_today + v_pts > v_cap then v_pts := greatest(0, v_cap - v_today); end if;
+  if v_pts <= 0 then return; end if;
+
+  insert into public.club_point_log(user_id, match_id, points)
+    values (auth.uid(), p_match_id, v_pts);
+
+  insert into public.club_points(club_id, season, points, wins, played,
+                                 name, city, country, crest, color)
+    values (v_club.id, v_season, v_pts,
+            case when p_outcome = 'win' then 1 else 0 end, 1,
+            v_club.name, v_club.city, v_club.country, v_club.crest, v_club.color)
+  on conflict (club_id, season) do update set
+    points  = public.club_points.points + excluded.points,
+    wins    = public.club_points.wins   + excluded.wins,
+    played  = public.club_points.played + excluded.played,
+    name = excluded.name, city = excluded.city, country = excluded.country,
+    crest = excluded.crest, color = excluded.color, updated_at = now();
+
+  return query select v_season, v_pts;
+end; $$;
+
+-- mantener el nombre/ciudad del club al día en el ranking si el coach lo edita
+create or replace function public.sync_club_points_meta()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  update public.club_points set
+    name = new.name, city = new.city, country = new.country,
+    crest = new.crest, color = new.color
+  where club_id = new.id;
+  return new;
+end; $$;
+
+drop trigger if exists on_club_meta_update on public.clubs;
+create trigger on_club_meta_update
+  after update on public.clubs
+  for each row execute function public.sync_club_points_meta();

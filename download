@@ -1,0 +1,61 @@
+// ============================================================
+// Supabase Edge Function: create-portal
+// Abre el Portal de Cliente de Stripe para que el usuario
+// gestione / cancele su suscripción y vea sus facturas.
+// ------------------------------------------------------------
+// Desplegar:  supabase functions deploy create-portal
+// Secrets necesarios (ya los tienes de create-checkout):
+//   STRIPE_SECRET_KEY = sk_live_... (o sk_test_...)
+//   APP_URL           = https://tudominio.com  (a dónde vuelve al cerrar el portal)
+// Requiere que el usuario tenga stripe_customer_id guardado en user_state
+// (lo escribe el webhook en checkout.session.completed).
+// ============================================================
+import Stripe from 'https://esm.sh/stripe@14?target=denonext';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
+const APP_URL = Deno.env.get('APP_URL') ?? 'http://localhost:8000';
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  try {
+    // identificar al usuario por su token de Supabase
+    const supa = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } },
+    );
+    const { data: { user } } = await supa.auth.getUser();
+    if (!user) return new Response(JSON.stringify({ error: 'no auth' }), { status: 401, headers: cors });
+
+    // leer el customer de Stripe guardado por el webhook
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const { data: row } = await admin.from('user_state')
+      .select('stripe_customer_id').eq('user_id', user.id).maybeSingle();
+    const customer = row?.stripe_customer_id as string | undefined;
+    if (!customer) return new Response(JSON.stringify({ error: 'no customer' }), { status: 400, headers: cors });
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer,
+      return_url: `${APP_URL}/app.html`,
+    });
+
+    return new Response(JSON.stringify({ url: session.url }), {
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), { status: 400, headers: cors });
+  }
+});

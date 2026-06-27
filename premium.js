@@ -1,839 +1,378 @@
 /* ============================================================
-   club.js — MODO CLUB (entrenador + jugadores, biblioteca compartida)
+   league.js — LIGA DE CLUBES (competición ciudad / país / mundo)
    ------------------------------------------------------------
-   Requiere TL.cloud (Supabase) con sesión iniciada y las tablas de
-   supabase/club_schema.sql ejecutadas. Es función PREMIUM.
-
-   Vista principal: TL.club.open() — muestra tu club (o crear/unirse),
-   la biblioteca compartida y, si eres entrenador, la lista de jugadores.
+   Vista pública (cualquier usuario con sesión): rankings de clubes
+   por Ciudad, País y Mundo + tabla de Países. Los puntos los suman
+   los partidos de los jugadores (award_match_points en Supabase).
+   Requiere supabase/league_schema.sql ejecutado.
    ============================================================ */
 (function (TL) {
-  const t = (k) => TL.i18n.t(k);
   const ic = TL.icon;
   const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
   function db() { return TL.cloud && TL.cloud.client; }
-  function uid() { return TL.cloud && TL.cloud.user ? TL.cloud.user.id : null; }
+  function ready() { return TL.cloud && TL.cloud.enabled && TL.cloud.loggedIn(); }
+  function en() { return TL.i18n.lang === 'en'; }
 
-  const FREE_PLAYERS = 4;   // jugadores gratis por club (sin contar al entrenador)
+  // ISO 2-letras → emoji bandera (sirve para cualquier país)
+  function flag(code) {
+    if (!code || code.length !== 2) return '🏳️';
+    const cc = code.toUpperCase();
+    return String.fromCodePoint(0x1F1E6 + cc.charCodeAt(0) - 65,
+                                0x1F1E6 + cc.charCodeAt(1) - 65);
+  }
+  // lista curada para el selector (cualquier otro país sigue valiendo por código)
+  const COUNTRIES = [
+    ['ES','España'],['FR','Francia'],['IT','Italia'],['PT','Portugal'],['DE','Alemania'],
+    ['GB','Reino Unido'],['AR','Argentina'],['MX','México'],['US','EE. UU.'],['BR','Brasil'],
+    ['CL','Chile'],['CO','Colombia'],['UY','Uruguay'],['PE','Perú'],['EC','Ecuador'],
+    ['NL','Países Bajos'],['BE','Bélgica'],['CH','Suiza'],['SE','Suecia'],['PL','Polonia'],
+    ['AT','Austria'],['CZ','Chequia'],['GR','Grecia'],['RO','Rumanía'],['MA','Marruecos']
+  ];
+  function countryName(code) {
+    const f = COUNTRIES.find(c => c[0] === code); return f ? f[1] : (code || '—');
+  }
 
-  const club = {
-    current: null,     // {id,name,invite_code,owner_id,plan}
-    role: null,        // 'coach' | 'player'
-    demo: false,       // modo demostración (datos de ejemplo, sin nube)
-    pageMode: false,   // true => render como página (pestaña), false => modal
-    _pageRoot: null,
-    FREE_PLAYERS,
+  const league = {
+    tab: 'mine',          // 'mine' | 'league' | 'countries'
+    scope: 'world',       // para la pestaña Liga: 'city' | 'country' | 'world'
+    q: '',                // búsqueda de texto en la pestaña Liga
+    rows: null,           // cache de club_points de la temporada
+    demo: false,          // modo demostración (datos de ejemplo, sin nube)
+
+    season() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); },
+    seasonLabel() {
+      const d = new Date();
+      const m = (en()
+        ? ['January','February','March','April','May','June','July','August','September','October','November','December']
+        : ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']);
+      return m[d.getMonth()] + ' ' + d.getFullYear();
+    },
+    daysLeft() {
+      const d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      return Math.max(0, Math.ceil((end - d) / 86400000));
+    },
+
+    async fetchRows() {
+      if (this.demo) { this.rows = this.demoRows(); return this.rows; }
+      if (!ready()) return [];
+      const { data } = await db().from('club_points').select('*')
+        .eq('season', this.season()).order('points', { ascending: false });
+      this.rows = (data || []).slice().sort((a, b) => b.points - a.points);
+      return this.rows;
+    },
 
     // ---- datos de ejemplo (modo demo) ----
-    demoClub() {
-      return { id: 'demo-myclub', name: 'Club Indoor Madrid', invite_code: 'MAD7TL',
-               owner_id: 'me', plan: 'pro', city: 'Madrid', country: 'ES', crest: '🎾', color: '#E8703D' };
-    },
-    demoMembers() {
-      return [
-        { user_id: 'me', email: 'entrenador@clubindoor.es', role: 'coach', points: 86, wins: 7, played: 11, streak: 3 },
-        { user_id: 'p1', email: 'carlos.ruiz@gmail.com', role: 'player', points: 124, wins: 11, played: 15, streak: 5 },
-        { user_id: 'p2', email: 'lucia.mendez@gmail.com', role: 'player', points: 98, wins: 8, played: 12, streak: 2 },
-        { user_id: 'p3', email: 'javier.soler@gmail.com', role: 'player', points: 72, wins: 6, played: 10, streak: 0 },
-        { user_id: 'p4', email: 'marta.gil@gmail.com', role: 'player', points: 140, wins: 13, played: 16, streak: 6 },
-        { user_id: 'p5', email: 'diego.romero@gmail.com', role: 'player', points: 44, wins: 3, played: 7, streak: 1 },
+    DEMO_CLUB_ID: 'demo-myclub',
+    demoRows() {
+      const r = [
+        { club_id: 'demo-myclub', name: 'Club Indoor Madrid', city: 'Madrid', country: 'ES', crest: '🎾', color: '#E8703D', points: 268, wins: 24, played: 31 },
+        { club_id: 'd2', name: 'Academia Nadal', city: 'Manacor', country: 'ES', crest: 'N', color: '#2A6FDB', points: 412, wins: 38, played: 47 },
+        { club_id: 'd3', name: 'RC Tenis Barcelona', city: 'Barcelona', country: 'ES', crest: 'B', color: '#C0392B', points: 351, wins: 31, played: 42 },
+        { club_id: 'd4', name: 'Sevilla Padel Pro', city: 'Sevilla', country: 'ES', crest: '🥎', color: '#1F8A5B', points: 205, wins: 19, played: 26 },
+        { club_id: 'd5', name: 'Valencia Tennis Hub', city: 'Valencia', country: 'ES', crest: 'V', color: '#8E44AD', points: 188, wins: 17, played: 24 },
+        { club_id: 'd6', name: 'Club Madrid Río', city: 'Madrid', country: 'ES', crest: 'R', color: '#16A085', points: 142, wins: 13, played: 20 },
+        { club_id: 'd7', name: 'Padel Lyon', city: 'Lyon', country: 'FR', crest: '🥎', color: '#2A6FDB', points: 398, wins: 36, played: 45 },
+        { club_id: 'd8', name: 'Paris Smash Club', city: 'París', country: 'FR', crest: 'P', color: '#C0392B', points: 276, wins: 25, played: 33 },
+        { club_id: 'd9', name: 'Roma Tennis', city: 'Roma', country: 'IT', crest: '🎾', color: '#E1A100', points: 233, wins: 21, played: 29 },
+        { club_id: 'd10', name: 'Buenos Aires Padel', city: 'Buenos Aires', country: 'AR', crest: 'B', color: '#2A6FDB', points: 321, wins: 29, played: 38 },
+        { club_id: 'd11', name: 'Lisboa Racket', city: 'Lisboa', country: 'PT', crest: 'L', color: '#1F8A5B', points: 167, wins: 15, played: 22 },
+        { club_id: 'd12', name: 'CDMX Tennis', city: 'Ciudad de México', country: 'MX', crest: 'M', color: '#C0392B', points: 198, wins: 18, played: 25 },
       ];
-    },
-    demoTactics() {
-      const T = TL.store;
-      const mk = (id, kind, padel, note, assigned) => {
-        let tac;
-        try { tac = padel ? T.templatePadel(kind) : T.templateTactic(kind); }
-        catch (e) { tac = T.newTactic(padel ? 'padel' : 'tennis'); }
-        tac._note = note || ''; tac._assigned = !!assigned;
-        return { id, name: tac.name || (padel ? 'Pádel' : 'Táctica'), author_id: 'me', data: tac };
-      };
-      return [
-        mk('dt1', 'serve_volley', false, TL.i18n.lang === 'en' ? 'Practise for Saturday' : 'A practicar para el sábado', true),
-        mk('dt2', 'return', false, '', false),
-        mk('dt3', 'p_vibora', true, TL.i18n.lang === 'en' ? 'Work the glass exit' : 'Repasad la salida de pared', true),
-        mk('dt4', 'p_bandeja', true, '', false),
-      ];
+      return r.sort((a, b) => b.points - a.points);
     },
 
-    available() { return !!(TL.cloud && TL.cloud.enabled); },
-    ready() { return this.available() && TL.cloud.loggedIn(); },
-
-    // ---- plan del club ----
-    plan() { return (this.current && this.current.plan) || 'free'; },
-    isPro() { return this.plan() !== 'free'; },
-
-    genCode() {
-      const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let s = ''; for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random() * a.length)];
-      return s;
+    myClub() {
+      if (TL.club && TL.club.current) return TL.club.current;
+      if (this.demo) return { id: this.DEMO_CLUB_ID, name: 'Club Indoor Madrid', city: 'Madrid', country: 'ES', crest: '🎾', color: '#E8703D' };
+      return null;
     },
 
-    // ---- campos de identidad (crear/editar club) ----
-    CLUB_COLORS: ['#E8703D', '#2A6FDB', '#1F8A5B', '#C0392B', '#8E44AD', '#16A085', '#E1A100'],
-    identityFields(v) {
-      v = v || {};
-      const en = TL.i18n.lang === 'en';
-      const countries = (TL.league ? TL.league.COUNTRIES : [])
-        .map(c => `<option value="${c[0]}" ${v.country === c[0] ? 'selected' : ''}>${c[1]}</option>`).join('');
-      const colors = this.CLUB_COLORS.map(c =>
-        `<button type="button" class="club-color ${(v.color || '#E8703D') === c ? 'on' : ''}" data-color="${c}" style="background:${c}"></button>`).join('');
-      return `
-        <input id="club-name" placeholder="${t('club_name_ph')}" value="${esc(v.name || '')}"/>
-        <div class="club-id-row">
-          <input id="club-city" placeholder="${en ? 'City' : 'Ciudad'}" value="${esc(v.city || '')}"/>
-          <select id="club-country"><option value="">${en ? 'Country…' : 'País…'}</option>${countries}</select>
-        </div>
-        <div class="club-id-row">
-          <input id="club-crest" maxlength="2" placeholder="${en ? 'Crest (emoji/letter)' : 'Escudo (emoji/letra)'}" value="${esc(v.crest || '')}"/>
-          <div class="club-colors" id="club-colors">${colors}</div>
-        </div>`;
-    },
-    bindColors(scope) {
-      const box = scope.querySelector('#club-colors'); if (!box) return;
-      box.querySelectorAll('.club-color').forEach(b => b.onclick = () => {
-        box.querySelectorAll('.club-color').forEach(x => x.classList.toggle('on', x === b));
-      });
-    },
-    readIdentity(scope) {
-      const cc = scope.querySelector('.club-color.on');
-      return {
-        name: (scope.querySelector('#club-name').value || '').trim(),
-        city: (scope.querySelector('#club-city') ? scope.querySelector('#club-city').value : '').trim(),
-        country: scope.querySelector('#club-country') ? scope.querySelector('#club-country').value : '',
-        crest: (scope.querySelector('#club-crest') ? scope.querySelector('#club-crest').value : '').trim(),
-        color: cc ? cc.dataset.color : '#E8703D',
-      };
+    // posición (1-based) de mi club dentro de una lista filtrada
+    posOf(list, clubId) {
+      const i = list.findIndex(r => r.club_id === clubId);
+      return i < 0 ? null : i + 1;
     },
 
-    // cargar el club del usuario (si pertenece a alguno)
-    async load() {
-      if (this.demo) { this.current = this.demoClub(); this.role = 'coach'; return this.current; }
-      if (!this.ready()) return null;
+    // ---------- award (lo llama matches.js al guardar un partido) ----------
+    async award(match) {
       try {
-        const { data: mem } = await db().from('club_members')
-          .select('club_id, role').eq('user_id', uid()).limit(1).maybeSingle();
-        if (!mem) { this.current = null; this.role = null; return null; }
-        const { data: c } = await db().from('clubs').select('*').eq('id', mem.club_id).maybeSingle();
-        this.current = c; this.role = mem.role;
-        return c;
-      } catch (e) { console.warn('club load', e); return null; }
-    },
-
-    // chequeo silencioso en segundo plano: ¿hay tácticas del club sin ver? → punto rojo
-    async checkBadge() {
-      try {
-        if (!this.ready || !this.ready()) return;
-        if (!this.current) { await this.load(); }
-        if (!this.current) { localStorage.setItem('tl_club_unseen','0'); TL.app && TL.app.refreshClubBadge && TL.app.refreshClubBadge(); return; }
-        await this.tactics(); // setea el flag y refresca el badge internamente
-      } catch (e) {}
-    },
-
-    async createClub(meta) {
-      if (!this.ready()) return { error: 'auth' };
-      const code = this.genCode();
-      const { data, error } = await db().from('clubs')
-        .insert({ owner_id: uid(), name: meta.name, invite_code: code,
-                  city: meta.city || null, country: meta.country || null,
-                  crest: meta.crest || null, color: meta.color || null })
-        .select().maybeSingle();
-      if (error) return { error: error.message };
-      this.current = data; this.role = 'coach';
-      return { ok: true };
-    },
-
-    // editar identidad del club (nombre, ciudad, país, escudo, color)
-    async updateIdentity(meta) {
-      if (!this.current) return { error: 'no club' };
-      const { error } = await db().from('clubs').update({
-        name: meta.name, city: meta.city || null, country: meta.country || null,
-        crest: meta.crest || null, color: meta.color || null }).eq('id', this.current.id);
-      if (error) return { error: error.message };
-      Object.assign(this.current, meta); return { ok: true };
-    },
-
-    async joinClub(code) {
-      if (!this.ready()) return { error: 'auth' };
-      const { data: c, error } = await db().from('clubs')
-        .select('*').eq('invite_code', (code || '').trim().toUpperCase()).maybeSingle();
-      if (error || !c) return { error: t('club_not_found') };
-      // si es tu propio club (eres el dueño) → entra como entrenador, no como jugador
-      if (c.owner_id === uid()) { this.current = c; this.role = 'coach'; return { ok: true }; }
-      // si ya perteneces a otro club, no te dejes unir a un segundo (rompe la vista)
-      const { data: mine } = await db().from('club_members')
-        .select('club_id').eq('user_id', uid()).limit(1).maybeSingle();
-      if (mine && mine.club_id && mine.club_id !== c.id) return { error: 'already_in_club' };
-      const { error: e2 } = await db().from('club_members')
-        .insert({ club_id: c.id, user_id: uid(), email: TL.cloud.email(), role: 'player' });
-      if (e2 && !/duplicate|conflict/i.test(e2.message)) {
-        if (/CLUB_FULL/i.test(e2.message || '')) return { error: 'club_full' };
-        return { error: e2.message };
-      }
-      this.current = c; this.role = 'player';
-      return { ok: true };
-    },
-
-    async leaveClub() {
-      if (!this.current) return;
-      await db().from('club_members').delete().eq('club_id', this.current.id).eq('user_id', uid());
-      this.current = null; this.role = null;
-    },
-
-    // entrenador (dueño): eliminar el club entero (cascada borra miembros y tácticas)
-    async deleteClub() {
-      if (!this.current) return { error: 'no club' };
-      const { error } = await db().from('clubs').delete().eq('id', this.current.id);
-      if (error) return { error: error.message };
-      this.current = null; this.role = null;
-      return { ok: true };
-    },
-
-    // ---- invitación por enlace ----
-    inviteLink() {
-      const code = this.current ? this.current.invite_code : '';
-      return location.origin + location.pathname + '?club=' + code;
-    },
-    async shareInvite() {
-      const en = TL.i18n.lang === 'en';
-      if (!this.current) return;
-      const code = this.current.invite_code;
-      const link = this.inviteLink();
-      const text = (en ? `Join my club "${this.current.name}" on CourtLab — code ${code}: `
-                       : `Únete a mi club "${this.current.name}" en CourtLab — código ${code}: `) + link;
-      if (navigator.share) {
-        try { await navigator.share({ title: 'CourtLab', text }); return; }
-        catch (e) { if (e && e.name === 'AbortError') return; }
-      }
-      try { await navigator.clipboard.writeText(link); TL.app.toast(en ? 'Invite link copied' : 'Enlace de invitación copiado', true); }
-      catch (e) { TL.app.toast(link); }
-    },
-    // capturar ?club=CODE al abrir la app (lo deja preparado para unirse)
-    capture() {
-      try {
-        const m = (location.search || '').match(/[?&]club=([A-Za-z0-9]+)/);
-        if (m) {
-          localStorage.setItem('tl_club_pending', m[1].toUpperCase());
-          const u = new URL(location.href); u.searchParams.delete('club');
-          history.replaceState(null, '', u.pathname + u.search + u.hash);
+        if (!ready() || !match || !match.played) return;
+        const oc = match.outcome;
+        if (oc !== 'win' && oc !== 'loss') return;          // empate/nulo no puntúa
+        if (localStorage.getItem('tl_lg_' + match.id)) return; // ya contado en este equipo
+        const { data, error } = await db().rpc('award_match_points',
+          { p_match_id: String(match.id), p_outcome: oc, p_bonus: 0 });
+        if (error) return;
+        localStorage.setItem('tl_lg_' + match.id, '1');
+        const got = data && data[0] && data[0].points;
+        // mini-liga interna: suma también al miembro (best-effort; requiere columnas points/wins/played en club_members)
+        try {
+          if (TL.club && TL.club.current && TL.cloud && TL.cloud.user) {
+            const u = TL.cloud.user.id, cid = TL.club.current.id;
+            const { data: m, error: me } = await db().from('club_members')
+              .select('points,wins,played').eq('club_id', cid).eq('user_id', u).maybeSingle();
+            if (!me && m) {
+              await db().from('club_members').update({
+                points: (m.points || 0) + (got || 0),
+                wins: (m.wins || 0) + (oc === 'win' ? 1 : 0),
+                played: (m.played || 0) + 1,
+              }).eq('club_id', cid).eq('user_id', u);
+            }
+          }
+        } catch (e) {}
+        if (got && TL.app && TL.app.toast) {
+          TL.app.toast((en() ? '+' : '+') + got + (en() ? ' club points 🏆' : ' puntos para tu club 🏆'), true);
         }
       } catch (e) {}
-    },
-    pendingInvite() { return localStorage.getItem('tl_club_pending') || ''; },
-    clearPending() { try { localStorage.removeItem('tl_club_pending'); } catch (e) {} },
-
-    // ---- entrenador: gestionar club ----
-    async removeMember(userId) {
-      if (!this.current) return { error: 'no club' };
-      const { error } = await db().from('club_members').delete()
-        .eq('club_id', this.current.id).eq('user_id', userId);
-      return error ? { error: error.message } : { ok: true };
-    },
-    async renameClub(name) {
-      if (!this.current) return { error: 'no club' };
-      const { error } = await db().from('clubs').update({ name }).eq('id', this.current.id);
-      if (error) return { error: error.message };
-      this.current.name = name; return { ok: true };
-    },
-    async regenCode() {
-      if (!this.current) return { error: 'no club' };
-      const code = this.genCode();
-      const { error } = await db().from('clubs').update({ invite_code: code }).eq('id', this.current.id);
-      if (error) return { error: error.message };
-      this.current.invite_code = code; return { ok: true };
-    },
-
-    async members() {
-      if (this.demo) return this.demoMembers();
-      if (!this.current) return [];
-      // intenta leer las columnas de puntos (mini-liga); si no existen, cae a lo básico
-      let res = await db().from('club_members')
-        .select('user_id,email,role,joined_at,points,wins,played').eq('club_id', this.current.id);
-      if (res.error) {
-        res = await db().from('club_members')
-          .select('user_id,email,role,joined_at').eq('club_id', this.current.id);
-      }
-      return res.data || [];
-    },
-
-    // nombre legible a partir del email (parte antes de la @, capitalizada)
-    displayName(m) {
-      if (!m) return '—';
-      const e = m.email || '';
-      const base = e.split('@')[0].replace(/[._-]+/g, ' ').trim();
-      if (!base) return e || '—';
-      return base.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
-    },
-
-    // mini-liga interna: miembros ordenados por puntos
-    memberLeague(mem) {
-      return (mem || []).map(m => ({
-        ...m,
-        points: m.points || 0, wins: m.wins || 0, played: m.played || 0, streak: m.streak || 0,
-        me: m.user_id === (this.demo ? 'me' : uid()),
-      })).sort((a, b) => (b.points - a.points) || (b.wins - a.wins));
-    },
-
-    async sharedTactics() {
-      if (this.demo) return this.demoTactics();
-      if (!this.current) return [];
-      const { data } = await db().from('club_tactics')
-        .select('id,name,data,author_id,updated_at').eq('club_id', this.current.id)
-        .order('updated_at', { ascending: false });
-      const list = data || [];
-      this._tactics = list;
-      // marca "nuevo" en la pestaña Club si hay algo del club sin ver (y no es tuyo)
-      try {
-        const me = uid();
-        const unseen = list.some(row => row.author_id !== me && !this.isSeen(row.id));
-        localStorage.setItem('tl_club_unseen', unseen ? '1' : '0');
-        TL.app && TL.app.refreshClubBadge && TL.app.refreshClubBadge();
-      } catch (e) {}
-      return list;
-    },
-
-    // entrenador: publicar una táctica propia al club
-    async share(tac, note) {
-      if (!this.current) return { error: 'no club' };
-      const copy = JSON.parse(JSON.stringify(tac)); delete copy.id; delete copy.fav;
-      if (note && note.trim()) copy._note = note.trim();
-      const { error } = await db().from('club_tactics')
-        .insert({ club_id: this.current.id, author_id: uid(), name: tac.name || '', data: copy });
-      if (error) return { error: error.message };
-      return { ok: true };
-    },
-
-    async unshare(id) {
-      await db().from('club_tactics').delete().eq('id', id);
-    },
-
-    // ---- coach mode: assign (required viewing) + per-device "seen" mark ----
-    // assigned flag lives inside the tactic's data blob (no schema change needed)
-    isAssigned(row) { return !!(row && row.data && row.data._assigned); },
-    async setAssigned(row, on) {
-      const data = JSON.parse(JSON.stringify(row.data || {}));
-      data._assigned = !!on;
-      const { error } = await db().from('club_tactics').update({ data, updated_at: new Date().toISOString() }).eq('id', row.id);
-      if (!error) row.data = data;
-      return { error: error && error.message };
-    },
-    seenKey(id) { return 'tl_club_seen_' + id; },
-    isSeen(id) { return localStorage.getItem(this.seenKey(id)) === '1'; },
-    markSeen(id) { try { localStorage.setItem(this.seenKey(id), '1'); this._recheckUnseen(); } catch (e) {} },
-    _recheckUnseen() {
-      try {
-        const cache = this._tactics || [];
-        const me = uid();
-        const unseen = cache.some(row => row.author_id !== me && !this.isSeen(row.id));
-        localStorage.setItem('tl_club_unseen', unseen ? '1' : '0');
-        TL.app && TL.app.refreshClubBadge && TL.app.refreshClubBadge();
-      } catch (e) {}
-    },
-
-    // jugador: copiar una táctica del club a su biblioteca personal
-    importToMine(row) {
-      const tac = JSON.parse(JSON.stringify(row.data));
-      tac.id = TL.store.uid();
-      tac.name = (row.name || tac.name || '') + ' ' + (TL.i18n.lang === 'en' ? '(club)' : '(club)');
-      tac.createdAt = tac.updatedAt = Date.now();
-      const list = TL.store.loadAll(); list.unshift(tac); TL.store.saveAll(list);
-      return tac;
     },
 
     // ---------- UI ----------
-    host() {
-      if (this.pageMode && this._pageRoot) return this._pageRoot;
-      let h = document.getElementById('modal-host'); if (!h) { h = document.createElement('div'); h.id = 'modal-host'; document.body.appendChild(h); } return h;
-    },
-    close() { if (this.pageMode) return; this.host().innerHTML = ''; },
-
-    // abrir como MODAL (desde ajustes u otros sitios)
-    async open() {
-      this.pageMode = false; this._pageRoot = null;
-      // competir es gratis: solo requiere sesión
-      if (!this.demo && !this.ready()) { TL.app.toast(t('club_need_login')); if (TL.cloud.authModal) TL.cloud.authModal(); return; }
-      this.host().innerHTML = `<div class="modal-scrim" id="ms"><div class="modal club-modal"><div class="club-loading">${t('loading')||'…'}</div></div></div>`;
-      await this.load();
-      this.draw();
-    },
-
-    // abrir como PÁGINA (pestaña de la barra inferior)
-    async renderPage(root) {
-      this.pageMode = true; this._pageRoot = root;
-      const en = TL.i18n.lang === 'en';
-      if (!this.demo && !this.ready()) {
-        root.innerHTML = `<div class="club-page"><div class="club-page-gate">
-          <span class="club-ic">${ic.users || ic.user}</span>
-          <h2>${t('club_title')}</h2>
-          <p>${en ? 'Train as a team and climb the Club League. Sign in to create or join a club.' : 'Entrena en equipo y sube en la Liga de Clubes. Inicia sesión para crear o unirte a un club.'}</p>
-          <button class="btn btn-primary" id="club-gate-login">${en ? 'Sign in' : 'Iniciar sesión'}</button>
+    async render(root) {
+      TL.state.view = 'league'; TL.state.tactic = null;
+      root.innerHTML = `<div class="lg-wrap"><div class="lg-load">${en() ? 'Loading league…' : 'Cargando liga…'}</div></div>`;
+      TL.app.updateTabbar && TL.app.updateTabbar();
+      window.scrollTo(0, 0);
+      if (!ready() && !this.demo) {
+        root.innerHTML = `<div class="lg-wrap"><div class="lg-empty">
+          <span class="lg-empty-ic">${ic.trophy || ic.star}</span>
+          <h2>${en() ? 'Club League' : 'Liga de Clubes'}</h2>
+          <p>${en() ? 'Sign in to compete with your club by city, country and worldwide.' : 'Inicia sesión para competir con tu club por ciudad, país y a nivel mundial.'}</p>
+          <button class="btn btn-primary" id="lg-login">${en() ? 'Sign in' : 'Iniciar sesión'}</button>
         </div></div>`;
-        const b = root.querySelector('#club-gate-login');
+        const b = root.querySelector('#lg-login');
         if (b) b.onclick = () => { if (TL.cloud.authModal) TL.cloud.authModal(); };
         return;
       }
-      root.innerHTML = `<div class="club-page"><div class="club-loading">${t('loading')||'…'}</div></div>`;
-      await this.load();
-      this.draw();
+      if (TL.club && TL.club.load) { try { await TL.club.load(); } catch (e) {} }
+      await this.fetchRows();
+      this.draw(root);
     },
 
-    draw() {
-      const en = TL.i18n.lang === 'en';
-      let body;
-      if (!this.current) {
-        const pend = this.pendingInvite();
-        body = `
-          <div class="club-hero">
-            <span class="club-ic">${ic.users || ic.user}</span>
-            <h2>${t('club_title')}</h2>
-            <p>${en ? 'Train as a team. Coaches share tactics with all their players.' : 'Entrena en equipo. El entrenador comparte tácticas con todos sus jugadores.'}</p>
-          </div>
-          <div class="club-two">
-            <div class="club-card">
-              <h3>${t('club_create')}</h3>
-              <p>${en ? 'You are a coach' : 'Eres entrenador'}</p>
-              ${this.identityFields({})}
-              <button class="btn btn-primary" id="club-create-btn">${t('club_create')}</button>
+    draw(root) {
+      const tabs = [
+        ['mine', en() ? 'My Club' : 'Mi Club'],
+        ['league', en() ? 'League' : 'Liga'],
+        ['countries', en() ? 'Countries' : 'Países'],
+      ];
+      root.innerHTML = `
+        <div class="lg-wrap">
+          <div class="lg-head">
+            <div>
+              <span class="kicker">${ic.trophy || ic.star} ${en() ? 'CLUB LEAGUE' : 'LIGA DE CLUBES'}</span>
+              <h1>${this.seasonLabel()}</h1>
             </div>
-            <div class="club-card ${pend ? 'club-card-hot' : ''}">
-              <h3>${t('club_join')}</h3>
-              <p>${pend ? (en ? 'You have an invite — tap Join' : 'Tienes una invitación — pulsa Unirse') : (en ? 'You are a player' : 'Eres jugador')}</p>
-              <input id="club-code" placeholder="${t('club_code_ph')}" style="text-transform:uppercase" value="${esc(pend)}"/>
-              <button class="btn ${pend ? 'btn-primary' : 'btn-line'}" id="club-join-btn">${t('club_join')}</button>
-            </div>
-          </div>`;
-      } else {
-        const coach = this.role === 'coach';
-        const accent = this.current.color || '#E8703D';
-        const crest = esc(this.current.crest || (this.current.name || '?').slice(0,1).toUpperCase());
-        const geo = (this.current.city || this.current.country)
-          ? `${this.current.city ? '📍 ' + esc(this.current.city) : ''}${this.current.country && TL.league ? (this.current.city ? ' · ' : '') + TL.league.flag(this.current.country) + ' ' + esc(TL.league.countryName(this.current.country)) : ''}` : '';
-        body = `
-          <div class="club-world-hero">
-            <div class="club-world-crest">${crest}</div>
-            <div class="club-world-id">
-              <span class="club-world-role">${coach ? t('club_role_coach') : t('club_role_player')}</span>
-              <h2>${esc(this.current.name)}${coach ? ` <button class="club-rename-btn" id="club-rename" title="${en ? 'Rename club' : 'Renombrar club'}">${ic.edit}</button>` : ''}</h2>
-              <div class="club-world-meta">
-                <span class="club-plan-tag ${this.isPro() ? 'pro' : 'free'}">${this.isPro() ? (en ? 'CLUB PLAN' : 'PLAN CLUB') : (en ? 'FREE' : 'GRATIS')}</span>
-                ${geo ? `<span class="club-geo">${geo}</span>` : ''}
-              </div>
-            </div>
+            <div class="lg-season">${this.daysLeft()} ${en() ? 'days left' : 'días restantes'}</div>
           </div>
-          ${coach ? `<div class="club-code-box">
-              <span>${t('club_code')}</span><b id="club-code-val">${esc(this.current.invite_code)}</b>
-              <button class="btn btn-ghost btn-sm" id="club-copy" title="${t('copy') || 'Copiar'}">${ic.copy}</button>
-              <button class="btn btn-ghost btn-sm" id="club-regen" title="${en ? 'Generate new code' : 'Generar código nuevo'}">↻</button>
-              <button class="btn btn-primary btn-sm" id="club-invite">${ic.share}${en ? 'Invite' : 'Invitar'}</button>
-            </div>` : ''}
-          ${this.noticeBlock(coach, en)}
-          <button class="btn btn-line club-league-btn" id="club-league">${ic.trophy || ic.star} ${en ? 'View League ranking' : 'Ver ranking de la Liga'}</button>
-          <div class="club-grid">
-          <div class="club-section club-mini-section">
-            <div class="club-sec-head">
-              <h3>${ic.trophy || ic.star} ${en ? 'Club leaderboard' : 'Clasificación del club'}</h3>
-              <span class="club-mini-sub">${en ? 'this season' : 'esta temporada'}</span>
-            </div>
-            <div id="club-mini" class="club-mini-list"><div class="club-loading">…</div></div>
-          </div>
-          <div class="club-section club-tac-section">
-            <div class="club-sec-head"><h3>${t('club_shared')}</h3>${coach ? `<button class="btn btn-primary btn-sm" id="club-share">${ic.plus}${t('club_share_tactic')}</button>` : ''}</div>
-            <div id="club-tactics" class="club-tac-list"><div class="club-loading">…</div></div>
-          </div>
-          ${coach ? `<div class="club-section club-players-section"><div class="club-sec-head"><h3>${t('club_players')}</h3></div><div id="club-members" class="club-mem-list"></div></div>` : ''}
-          </div>
-          <div class="club-foot"><button class="btn btn-ghost btn-sm" id="club-leave">${coach ? (en ? 'Delete club' : 'Eliminar club') : t('club_leave')}</button></div>`;
-      }
-      const accentVar = this.current ? `--club-accent:${esc(this.current.color || '#E8703D')}` : '';
-      if (this.current) { try { document.body.style.setProperty('--club-world', this.current.color || '#E8703D'); } catch (e) {} }
-      if (this.pageMode) {
-        this.host().innerHTML = `<div class="club-page${this.current ? ' has-club' : ''}" style="${accentVar}">${body}</div>`;
-      } else {
-        this.host().innerHTML = `<div class="modal-scrim" id="ms"><div class="modal club-modal" style="${accentVar}">
-          <div class="modal-head"><h2>${t('club_title')}</h2><button class="x" id="mx">${ic.x}</button></div>
-          <div class="modal-body">${body}</div></div></div>`;
-      }
-      this.bind();
-      if (this.current) { this.fillMiniLeague(); this.fillTactics(); if (this.role === 'coach') this.fillMembers(); }
-    },
-
-    bind() {
-      const h = this.host();
-      const mx = h.querySelector('#mx'); if (mx) mx.onclick = () => this.close();
-      const ms = h.querySelector('#ms'); if (ms) ms.onclick = e => { if (e.target.id === 'ms') this.close(); };
-      const cb = h.querySelector('#club-create-btn');
-      if (cb) {
-        this.bindColors(h);
-        cb.onclick = async () => {
-          const meta = this.readIdentity(h);
-          if (!meta.name) { TL.app.toast(t('club_name_ph')); return; }
-          cb.disabled = true;
-          const r = await this.createClub(meta);
-          if (r.error) { TL.app.toast(r.error); cb.disabled = false; return; }
-          TL.app.toast(t('club_created'), true); this.draw();
-        };
-      }
-      const jb = h.querySelector('#club-join-btn');
-      if (jb) jb.onclick = async () => {
-        const code = h.querySelector('#club-code').value.trim();
-        if (!code) { TL.app.toast(t('club_code_ph')); return; }
-        jb.disabled = true;
-        const r = await this.joinClub(code);
-        if (r.error) {
-          const en = TL.i18n.lang === 'en';
-          const msg = r.error === 'club_full'
-            ? (en ? 'This club is full (free plan). Ask the coach to upgrade.' : 'Este club está lleno (plan gratis). Pide al entrenador que lo amplíe.')
-            : r.error === 'already_in_club'
-            ? (en ? 'You are already in a club. Leave it first to join another.' : 'Ya perteneces a un club. Sal de él antes de unirte a otro.')
-            : r.error;
-          TL.app.toast(msg); jb.disabled = false; return;
-        }
-        this.clearPending();
-        TL.app.toast(t('club_joined'), true); this.draw();
-      };
-      const cp = h.querySelector('#club-copy');
-      if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(this.current.invite_code); TL.app.toast(t('copied') || 'Copiado', true); } catch (e) {} };
-      const sh2 = h.querySelector('#club-invite');
-      if (sh2) sh2.onclick = () => this.shareInvite();
-      const lg = h.querySelector('#club-league');
-      if (lg) lg.onclick = () => { this.close(); TL.app.openLeague(); };
-      const rn = h.querySelector('#club-rename');
-      if (rn) rn.onclick = () => this.editIdentity();
-      const nadd = h.querySelector('#club-notice-add'); if (nadd) nadd.onclick = () => this.editNotice();
-      const nedit = h.querySelector('#club-notice-edit'); if (nedit) nedit.onclick = () => this.editNotice();
-      const rg = h.querySelector('#club-regen');
-      if (rg) rg.onclick = async () => {
-        const en = TL.i18n.lang === 'en';
-        const ok = await TL.ui.confirm({ message: en ? 'Generate a new invite code? The old one stops working.' : '¿Generar un código nuevo? El anterior dejará de funcionar.', ok: en ? 'New code' : 'Nuevo código' });
-        if (!ok) return;
-        const r = await this.regenCode();
-        if (r.error) { TL.app.toast(r.error); return; }
-        TL.app.toast(en ? 'New code generated' : 'Código nuevo generado', true); this.draw();
-      };
-      const sh = h.querySelector('#club-share');
-      if (sh) sh.onclick = () => this.pickToShare();
-      const lv = h.querySelector('#club-leave');
-      if (lv) lv.onclick = async () => {
-        const en = TL.i18n.lang === 'en';
-        if (this.role === 'coach') {
-          // el entrenador es el dueño: salir = eliminar el club (si no, queda huérfano)
-          const ok = await TL.ui.confirm({ message: en ? 'Delete this club? All shared tactics and players will be removed. This cannot be undone.' : '¿Eliminar este club? Se borrarán las tácticas compartidas y los jugadores. No se puede deshacer.', danger: true, ok: en ? 'Delete club' : 'Eliminar club' });
-          if (!ok) return;
-          const r = await this.deleteClub();
-          if (r.error) { TL.app.toast(r.error); return; }
-          TL.app.toast(en ? 'Club deleted' : 'Club eliminado'); this.draw();
-        } else {
-          const ok = await TL.ui.confirm({ message: t('club_leave_confirm'), danger: true, ok: en ? 'Leave' : 'Salir' });
-          if (!ok) return;
-          await this.leaveClub(); TL.app.toast(t('club_left')); this.draw();
-        }
-      };
-    },
-
-    // ---- TABLÓN del club (aviso fijado por el entrenador) ----
-    noticeBlock(coach, en) {
-      const notice = (this.current && this.current.notice) ? esc(this.current.notice) : '';
-      if (!notice && !coach) return '';
-      if (!notice && coach) {
-        return `<button class="club-notice add" id="club-notice-add">
-            <span class="cn-ic">📌</span>
-            <span class="cn-tx">${en ? 'Pin a notice for your players…' : 'Fija un aviso para tus jugadores…'}</span>
-          </button>`;
-      }
-      return `<div class="club-notice">
-          <span class="cn-ic">📌</span>
-          <div class="cn-body"><span class="cn-label">${en ? 'CLUB BOARD' : 'TABLÓN'}</span><p class="cn-tx">${notice}</p></div>
-          ${coach ? `<button class="cn-edit" id="club-notice-edit" title="${en ? 'Edit' : 'Editar'}">${ic.edit}</button>` : ''}
+          <div class="lg-tabs">${tabs.map(tb =>
+            `<button class="lg-tab ${this.tab === tb[0] ? 'on' : ''}" data-tab="${tb[0]}">${tb[1]}</button>`).join('')}</div>
+          <div id="lg-body" class="lg-body"></div>
         </div>`;
-    },
-    // ---- vistas de tácticas (coach ve quién las vió) ----
-    async recordView(tacticId) {
-      if (this.demo || !this.current) return;
-      try {
-        await db().from('club_tactic_views')
-          .upsert({ club_id: this.current.id, tactic_id: tacticId, user_id: uid(), seen_at: new Date().toISOString() }, { onConflict: 'tactic_id,user_id' });
-      } catch (e) {}
-    },
-    async viewCountsFor(ids) {
-      const out = {};
-      if (this.demo) { (ids||[]).forEach((id,i) => out[id] = (i*2) % 5); return out; }
-      if (!this.current || !ids || !ids.length) return out;
-      try {
-        const { data } = await db().from('club_tactic_views')
-          .select('tactic_id, user_id').eq('club_id', this.current.id).in('tactic_id', ids);
-        (data || []).forEach(r => { out[r.tactic_id] = (out[r.tactic_id] || 0) + 1; });
-      } catch (e) {}
-      return out;
-    },
-
-    async setNotice(text) {
-      if (this.demo) { this.current.notice = text; return { ok: true }; }
-      const { error } = await db().from('clubs').update({ notice: text || null, notice_at: new Date().toISOString() }).eq('id', this.current.id);
-      if (!error) this.current.notice = text;
-      return { error: error && error.message };
-    },
-    async editNotice() {
-      const en = TL.i18n.lang === 'en';
-      const cur = (this.current && this.current.notice) || '';
-      const val = await TL.ui.prompt({
-        title: en ? 'Club board' : 'Tablón del club',
-        message: en ? 'This message shows to all your players when they open Club.' : 'Este mensaje lo ven todos tus jugadores al abrir Club.',
-        value: cur, placeholder: en ? 'e.g. Training Thu 7pm — bring water' : 'p. ej. Entreno jueves 19h — traed agua',
-        multiline: true, ok: en ? 'Pin' : 'Fijar',
+      root.querySelectorAll('.lg-tab').forEach(b => b.onclick = () => {
+        this.tab = b.dataset.tab;
+        root.querySelectorAll('.lg-tab').forEach(x => x.classList.toggle('on', x === b));
+        this.drawBody(root);
       });
-      if (val === null) return;
-      const r = await this.setNotice(val.trim());
-      if (r && r.error) { TL.app.toast(r.error); return; }
-      TL.app.toast(val.trim() ? (en ? 'Notice pinned' : 'Aviso fijado') : (en ? 'Notice removed' : 'Aviso quitado'), true);
-      this.renderPage(this._pageRoot || this.host());
+      this.drawBody(root);
     },
 
-    async fillMiniLeague() {
-      const box = this.host().querySelector('#club-mini'); if (!box) return;
-      const en = TL.i18n.lang === 'en';
-      const mem = await this.members();
-      const list = this.memberLeague(mem);
-      const anyPoints = list.some(m => m.points > 0);
-      if (!list.length) { box.innerHTML = `<div class="club-empty">${en ? 'No members yet.' : 'Aún no hay miembros.'}</div>`; return; }
-      if (!anyPoints) {
-        box.innerHTML = `<div class="club-mini-empty">${ic.trophy || ic.star}
-          <p>${en ? 'No points yet this season. When members log matches, they climb here — win +10, played +2.' : 'Aún no hay puntos esta temporada. Cuando los miembros registren partidos, subirán aquí — ganar +10, jugar +2.'}</p></div>`;
+    drawBody(root) {
+      const box = root.querySelector('#lg-body'); if (!box) return;
+      if (this.tab === 'mine') return this.drawMine(box);
+      if (this.tab === 'countries') return this.drawCountries(box);
+      return this.drawLeague(box);
+    },
+
+    // ---- Mi Club ----
+    drawMine(box) {
+      const club = this.myClub();
+      const rows = this.rows || [];
+      if (!club) {
+        box.innerHTML = `<div class="lg-empty sm">
+          <span class="lg-empty-ic">${ic.users || ic.user}</span>
+          <h2>${en() ? 'You have no club yet' : 'Aún no tienes club'}</h2>
+          <p>${en() ? 'Create or join a club to start earning points and climb the rankings.' : 'Crea o únete a un club para sumar puntos y escalar en los rankings.'}</p>
+          <button class="btn btn-primary" id="lg-club">${en() ? 'Create / join a club' : 'Crear / unirse a un club'}</button>
+        </div>`;
+        const b = box.querySelector('#lg-club'); if (b) b.onclick = () => TL.club.open();
         return;
       }
-      const top = list[0].points || 1;
-      box.innerHTML = list.map((m, i) => {
+      const mine = rows.find(r => r.club_id === club.id);
+      const pts = mine ? mine.points : 0, wins = mine ? mine.wins : 0, played = mine ? mine.played : 0;
+      const world = this.posOf(rows, club.id);
+      const cityList = rows.filter(r => (r.city || '').toLowerCase() === (club.city || '').toLowerCase() && club.city);
+      const ctryList = rows.filter(r => (r.country || '') === (club.country || '') && club.country);
+      const cityPos = club.city ? this.posOf(cityList, club.id) : null;
+      const ctryPos = club.country ? this.posOf(ctryList, club.id) : null;
+      const medal = (pos, total, label) => `
+        <div class="lg-medal">
+          <span class="lg-medal-pos">${pos ? '#' + pos : '—'}</span>
+          <span class="lg-medal-of">${pos ? (en() ? 'of ' : 'de ') + total : ''}</span>
+          <span class="lg-medal-lb">${label}</span>
+        </div>`;
+      box.innerHTML = `
+        <div class="lg-myclub" style="--club:${esc(club.color || '#E8703D')}">
+          <span class="lg-crest">${esc(club.crest || (club.name || '?').slice(0, 1).toUpperCase())}</span>
+          <div class="lg-myclub-tx">
+            <h2>${esc(club.name)}</h2>
+            <p>${club.city ? '📍 ' + esc(club.city) : ''}${club.country ? ' · ' + flag(club.country) + ' ' + esc(countryName(club.country)) : ''}</p>
+          </div>
+          <div class="lg-myclub-pts"><b>${pts}</b><span>${en() ? 'pts' : 'pts'}</span></div>
+        </div>
+        <div class="lg-medals">
+          ${medal(cityPos, cityList.length, en() ? 'City' : 'Ciudad')}
+          ${medal(ctryPos, ctryList.length, en() ? 'Country' : 'País')}
+          ${medal(world, rows.length, en() ? 'World' : 'Mundo')}
+        </div>
+        <div class="lg-myclub-stats">
+          <div><b>${wins}</b><span>${en() ? 'wins' : 'victorias'}</span></div>
+          <div><b>${played}</b><span>${en() ? 'matches' : 'partidos'}</span></div>
+          <div><b>${this.daysLeft()}</b><span>${en() ? 'days left' : 'días restan'}</span></div>
+        </div>
+        <p class="lg-hint">${en() ? 'Every match your players log adds points: win +10, played +2.' : 'Cada partido que registran tus jugadores suma: ganar +10, jugar +2.'}</p>
+        ${!club.country ? `<div class="lg-warn">${en() ? 'Set your club city & country so it ranks. ' : 'Pon la ciudad y el país del club para que aparezca en los rankings. '}<button class="lk" id="lg-edit">${en() ? 'Edit club' : 'Editar club'}</button></div>` : ''}`;
+      const ed = box.querySelector('#lg-edit'); if (ed) ed.onclick = () => TL.club.open();
+    },
+
+    // ---- Liga (Ciudad / País / Mundo) ----
+    drawLeague(box) {
+      const club = this.myClub();
+      const scopes = [
+        ['city', en() ? 'City' : 'Ciudad'],
+        ['country', en() ? 'Country' : 'País'],
+        ['world', en() ? 'World' : 'Mundo'],
+      ];
+      box.innerHTML = `
+        <div class="lg-search">
+          <span class="lg-search-ic">${ic.search || ''}</span>
+          <input id="lg-q" type="search" autocomplete="off" placeholder="${en() ? 'Search club, city or country…' : 'Buscar club, ciudad o país…'}" value="${esc(this.q || '')}"/>
+          ${this.q ? `<button class="lg-search-x" id="lg-qx" aria-label="clear">${ic.x || '×'}</button>` : ''}
+        </div>
+        <div class="lg-scopes">${scopes.map(s =>
+          `<button class="lg-scope ${this.scope === s[0] ? 'on' : ''}" data-scope="${s[0]}">${s[1]}</button>`).join('')}</div>
+        <div class="lg-subhead" id="lg-sub"></div>
+        <div class="lg-table" id="lg-tbl"></div>`;
+      box.querySelectorAll('.lg-scope').forEach(b => b.onclick = () => {
+        this.scope = b.dataset.scope;
+        // al elegir un ámbito, salimos de la búsqueda de texto
+        if (this.q) { this.q = ''; const i = box.querySelector('#lg-q'); if (i) i.value = ''; const x = box.querySelector('#lg-qx'); if (x) x.remove(); }
+        box.querySelectorAll('.lg-scope').forEach(x => x.classList.toggle('on', x === b));
+        this.renderLeagueTable(box, club);
+      });
+      const inp = box.querySelector('#lg-q');
+      if (inp) inp.oninput = () => { this.q = inp.value; this.renderLeagueTable(box, club); };
+      const qx = box.querySelector('#lg-qx');
+      if (qx) qx.onclick = () => { this.q = ''; this.drawLeague(box); };
+      this.renderLeagueTable(box, club);
+    },
+
+    renderLeagueTable(box, club) {
+      let rows = this.rows || [];
+      const q = (this.q || '').trim().toLowerCase();
+      const scopesEl = box.querySelectorAll('.lg-scope');
+      let subhead;
+      if (q) {
+        scopesEl.forEach(x => x.classList.add('dim'));
+        rows = rows.filter(r =>
+          (r.name || '').toLowerCase().includes(q) ||
+          (r.city || '').toLowerCase().includes(q) ||
+          (r.country || '').toLowerCase().includes(q) ||
+          countryName(r.country || '').toLowerCase().includes(q));
+        const n = rows.length;
+        subhead = `${n} ${en() ? (n === 1 ? 'result' : 'results') : (n === 1 ? 'resultado' : 'resultados')} · “${esc(this.q.trim())}”`;
+      } else {
+        scopesEl.forEach(x => x.classList.remove('dim'));
+        if (this.scope === 'city' && club && club.city)
+          rows = rows.filter(r => (r.city || '').toLowerCase() === club.city.toLowerCase());
+        else if (this.scope === 'country' && club && club.country)
+          rows = rows.filter(r => (r.country || '') === club.country);
+        subhead = this.scope === 'city'
+          ? (club && club.city ? esc(club.city) : (en() ? 'Set your club city' : 'Pon la ciudad de tu club'))
+          : this.scope === 'country'
+          ? (club && club.country ? flag(club.country) + ' ' + countryName(club.country) : (en() ? 'Set your club country' : 'Pon el país de tu club'))
+          : (en() ? 'Worldwide' : 'Mundial');
+      }
+      const subEl = box.querySelector('#lg-sub'); if (subEl) subEl.innerHTML = subhead;
+      const tblEl = box.querySelector('#lg-tbl'); if (!tblEl) return;
+      if (q && !rows.length) {
+        tblEl.innerHTML = `<div class="lg-first">
+          <span class="lg-first-ic">${ic.trophy || ic.star}</span>
+          <h3>${en() ? `No clubs match “${esc(this.q.trim())}”` : `Ningún club coincide con «${esc(this.q.trim())}»`}</h3>
+          <p>${en() ? 'Try another city or country — or be the first to register one there.' : 'Prueba otra ciudad o país — o sé el primero en registrar uno allí.'}</p>
+        </div>`;
+        return;
+      }
+      tblEl.innerHTML = this.tableRows(rows, club);
+      const fc = tblEl.querySelector('#lg-first-cta');
+      if (fc) fc.onclick = () => { if (this.demo) { TL.app.toast(en() ? 'Demo mode — sign in to compete for real.' : 'Modo demo — inicia sesión para competir de verdad.'); return; } TL.app.openMatches(); };
+    },
+
+    tableRows(rows, club) {
+      if (!rows.length) {
+        const city = club && club.city ? esc(club.city) : '';
+        const cname = club && club.name ? esc(club.name) : (en() ? 'your club' : 'tu club');
+        let head, sub;
+        if (this.scope === 'city') {
+          head = city ? (en() ? `Be the first club in ${city}` : `Sé el primer club de ${city}`)
+                      : (en() ? 'Be the first club in your city' : 'Sé el primer club de tu ciudad');
+          sub = en() ? `Log a match and put ${cname} on the map. 🏆`
+                     : `Registra un partido y pon a ${cname} en el mapa. 🏆`;
+        } else if (this.scope === 'country') {
+          head = en() ? 'Be the first club in your country' : 'Sé el primer club de tu país';
+          sub = en() ? 'Win matches to climb the national ranking.' : 'Gana partidos para subir en el ranking nacional.';
+        } else {
+          head = en() ? 'The world ranking is just starting' : 'El ranking mundial acaba de empezar';
+          sub = en() ? 'Early clubs get the top spots. Log a match!' : 'Los primeros clubes se llevan lo más alto. ¡Registra un partido!';
+        }
+        return `<div class="lg-first">
+          <span class="lg-first-ic">${ic.trophy || ic.star}</span>
+          <h3>${head}</h3>
+          <p>${sub}</p>
+          <button class="btn btn-primary" id="lg-first-cta">${ic.plus || ''}${en() ? 'Log a match' : 'Registrar partido'}</button>
+        </div>`;
+      };
+      return rows.slice(0, 100).map((r, i) => {
+        const me = club && r.club_id === club.id;
         const pos = i + 1;
         const podium = pos <= 3 ? 'p' + pos : '';
-        const pct = Math.max(6, Math.round((m.points / top) * 100));
-        const name = this.displayName(m);
-        const isCoach = m.role === 'coach';
         return `
-        <div class="club-mini-row ${m.me ? 'me' : ''}">
-          <span class="club-mini-pos ${podium}">${pos <= 3 ? ['🥇','🥈','🥉'][pos-1] : pos}</span>
-          <span class="club-mini-av">${esc(name.slice(0,1).toUpperCase())}</span>
-          <div class="club-mini-tx">
-            <b>${esc(name)}${m.me ? ` <span class="club-mini-you">${en ? 'YOU' : 'TÚ'}</span>` : ''}${isCoach ? ` <span class="club-mini-coach">${en ? 'COACH' : 'COACH'}</span>` : ''}</b>
-            <div class="club-mini-bar"><i style="width:${pct}%"></i></div>
-            <small>${m.wins} ${en ? 'wins' : 'vict.'} · ${m.played} ${en ? 'played' : 'jug.'}${m.streak >= 2 ? ` · 🔥 ${m.streak}` : ''}</small>
-          </div>
-          <span class="club-mini-pts">${m.points}<span>${en ? 'pts' : 'pts'}</span></span>
+        <div class="lg-row ${me ? 'me' : ''}">
+          <span class="lg-pos ${podium}">${pos}</span>
+          <span class="lg-crest sm" style="--club:${esc(r.color || '#E8703D')}">${esc(r.crest || (r.name || '?').slice(0, 1).toUpperCase())}</span>
+          <span class="lg-name">${esc(r.name || '—')}${r.country ? ` <i>${flag(r.country)}</i>` : ''}<small>${esc(r.city || '')}</small></span>
+          <span class="lg-pts">${r.points}</span>
         </div>`;
       }).join('');
     },
 
-    async fillTactics() {
-      const box = this.host().querySelector('#club-tactics'); if (!box) return;
-      let rows = await this.sharedTactics();
-      const coach = this.role === 'coach';
-      const en = TL.i18n.lang === 'en';
-      if (!rows.length) { box.innerHTML = `<div class="club-empty">${t('club_no_tactics')}</div>`; return; }
-      // assigned plays float to the top
-      rows = rows.slice().sort((a,b) => (this.isAssigned(b)?1:0) - (this.isAssigned(a)?1:0));
-      // entrenador: cuántos jugadores han visto cada jugada (lectura best-effort)
-      let views = {};
-      if (coach) { try { views = await this.viewCountsFor(rows.map(r=>r.id)); } catch(e){} }
-      // coach summary: how many plays are assigned
-      const nAssigned = rows.filter(r => this.isAssigned(r)).length;
-      const summary = coach
-        ? (nAssigned ? `<div class="club-coach-note">${ic.flag||ic.star} ${nAssigned} ${en?'play(s) assigned to your players':'jugada(s) asignada(s) a tus jugadores'}</div>` : '')
-        : (nAssigned ? `<div class="club-coach-note">${ic.flag||ic.star} ${en?'Your coach assigned plays — watch them below.':'Tu entrenador asignó jugadas — míralas abajo.'}</div>` : '');
-      box.innerHTML = summary + rows.map(r => {
-        const assigned = this.isAssigned(r);
-        const seen = this.isSeen(r.id);
-        const steps = (r.data && r.data.steps ? r.data.steps.length : 0);
-        const sport = (r.data && r.data.sport === 'padel') ? '🥎' : '🎾';
-        const note = (r.data && r.data._note) ? `<div class="club-tac-note">${ic.flag} ${esc(r.data._note)}</div>` : '';
-        return `
-        <div class="club-tac ${assigned?'assigned':''} ${(assigned&&!coach&&!seen)?'todo':''}" data-id="${r.id}">
-          <div class="club-tac-tt">
-            <b>${sport} ${esc(r.name || t('untitled'))}
-              ${assigned ? `<span class="ct-tag plan">${en?'PLAN':'PLAN'}</span>` : ''}
-              ${(assigned && !coach) ? (seen ? `<span class="ct-tag seen">${en?'SEEN':'VISTA'} ✓</span>` : `<span class="ct-tag todo">${en?'TO WATCH':'POR VER'}</span>`) : ''}
-              ${coach ? `<span class="ct-tag views" title="${en?'players who watched':'jugadores que la vieron'}">👁 ${views[r.id]||0}</span>` : ''}
-            </b>
-            <span>${steps} ${en ? (steps===1?'step':'steps') : (steps===1?'paso':'pasos')}</span>
-            ${note}
-          </div>
-          <div class="club-tac-act">
-            <button class="btn btn-line btn-sm act-watch">${ic.play}${en?'Watch':'Ver'}</button>
-            <button class="btn btn-ghost btn-sm act-import">${ic.copy || ''}${t('club_import')}</button>
-            ${coach ? `<button class="btn ${assigned?'btn-primary':'btn-ghost'} btn-sm act-assign" title="${en?'Assign as required play':'Asignar como jugada obligatoria'}">${assigned?(en?'Assigned':'Asignada'):(en?'Assign':'Asignar')}</button>` : ''}
-            ${coach ? `<button class="btn btn-ghost btn-sm act-unshare" title="${t('delete')}">${ic.trash}</button>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      box.querySelectorAll('.club-tac').forEach(el => {
-        const row = rows.find(r => r.id === el.dataset.id);
-        if (!row) return;
-        const openWatch = () => {
-          const tac = JSON.parse(JSON.stringify(row.data)); tac.id = tac.id || ('club_' + row.id);
-          this.markSeen(row.id);
-          if (!coach) this.recordView(row.id);
-          this.close();
-          TL.editor.open(tac, { viewer: true });
-        };
-        el.querySelector('.act-watch').onclick = openWatch;
-        el.querySelector('.act-import').onclick = () => { this.importToMine(row); TL.app.toast(t('club_imported'), true); };
-        const as = el.querySelector('.act-assign');
-        if (as) as.onclick = async () => {
-          as.disabled = true;
-          const r = await this.setAssigned(row, !this.isAssigned(row));
-          if (r.error) { TL.app.toast(r.error); as.disabled = false; return; }
-          TL.app.toast(this.isAssigned(row) ? (en?'Assigned to players':'Asignada a jugadores') : (en?'Assignment removed':'Asignación quitada'), true);
-          this.fillTactics();
-        };
-        const un = el.querySelector('.act-unshare');
-        if (un) un.onclick = async () => {
-          const en = TL.i18n.lang === 'en';
-          const ok = await TL.ui.confirm({ message: en ? 'Remove this play from the club?' : '¿Quitar esta jugada del club?', danger: true, ok: t('delete') });
-          if (!ok) return;
-          await this.unshare(row.id); this.fillTactics();
-        };
+    // ---- Países ----
+    drawCountries(box) {
+      const rows = this.rows || [];
+      const map = {};
+      rows.forEach(r => {
+        const c = r.country || ''; if (!c) return;
+        if (!map[c]) map[c] = { country: c, points: 0, clubs: 0 };
+        map[c].points += r.points; map[c].clubs += 1;
       });
-    },
-
-    async fillMembers() {
-      const box = this.host().querySelector('#club-members'); if (!box) return;
-      const en = TL.i18n.lang === 'en';
-      const mem = await this.members();
-      const ownerId = this.current && this.current.owner_id;
-      const players = mem.filter(m => m.role !== 'coach').length;
-      const count = `<div class="club-mem-count">${mem.length} ${en ? (mem.length === 1 ? 'member' : 'members') : (mem.length === 1 ? 'miembro' : 'miembros')} · ${players} ${en ? (players === 1 ? 'player' : 'players') : (players === 1 ? 'jugador' : 'jugadores')}</div>`;
-      // barra de uso del plan (solo entrenador)
-      let usage = '';
-      if (this.role === 'coach') {
-        if (this.isPro()) {
-          usage = `<div class="club-usage pro"><span class="club-usage-tx">${ic.check || '✓'} ${en ? 'Club Plan · unlimited players' : 'Plan Club · jugadores ilimitados'}</span></div>`;
-        } else {
-          const pct = Math.min(100, Math.round(players / FREE_PLAYERS * 100));
-          const full = players >= FREE_PLAYERS;
-          usage = `<div class="club-usage ${full ? 'full' : ''}">
-            <div class="club-usage-row">
-              <span class="club-usage-tx">${players} / ${FREE_PLAYERS} ${en ? 'players (free plan)' : 'jugadores (plan gratis)'}</span>
-              <button class="btn btn-primary btn-sm" id="club-upgrade">${en ? 'Upgrade' : 'Ampliar'}</button>
-            </div>
-            <div class="club-usage-bar"><i style="width:${pct}%"></i></div>
-            ${full ? `<div class="club-usage-warn">${en ? 'Club is full — upgrade to add more players.' : 'Club lleno — amplía para añadir más jugadores.'}</div>` : ''}
+      const list = Object.values(map).sort((a, b) => b.points - a.points);
+      const myC = this.myClub() && this.myClub().country;
+      if (!list.length) { box.innerHTML = `<div class="lg-empty sm"><p>${en() ? 'No countries ranked yet.' : 'Aún no hay países clasificados.'}</p></div>`; return; }
+      box.innerHTML = `
+        <div class="lg-subhead">${en() ? 'Country vs country — total points of all their clubs' : 'País contra país — puntos sumados de todos sus clubes'}</div>
+        <div class="lg-table">${list.map((c, i) => {
+          const me = c.country === myC, pos = i + 1, podium = pos <= 3 ? 'p' + pos : '';
+          return `
+          <div class="lg-row ${me ? 'me' : ''}">
+            <span class="lg-pos ${podium}">${pos}</span>
+            <span class="lg-cflag">${flag(c.country)}</span>
+            <span class="lg-name">${esc(countryName(c.country))}<small>${c.clubs} ${en() ? (c.clubs === 1 ? 'club' : 'clubs') : (c.clubs === 1 ? 'club' : 'clubes')}</small></span>
+            <span class="lg-pts">${c.points}</span>
           </div>`;
-        }
-      }
-      box.innerHTML = count + usage + mem.map(m => {
-        const isOwner = m.user_id === ownerId;
-        const canKick = this.role === 'coach' && !isOwner && m.user_id !== uid();
-        return `
-        <div class="club-mem" data-uid="${m.user_id}">
-          <span class="club-mem-av">${esc((m.email || '?').slice(0, 1).toUpperCase())}</span>
-          <span class="club-mem-tx">${esc(m.email || '—')}</span>
-          <span class="club-mem-role ${m.role}">${m.role === 'coach' ? t('club_role_coach') : t('club_role_player')}</span>
-          ${canKick ? `<button class="btn btn-ghost btn-sm club-mem-kick" title="${en ? 'Remove player' : 'Quitar jugador'}">${ic.trash}</button>` : ''}
-        </div>`;
-      }).join('');
-      const up = box.querySelector('#club-upgrade');
-      if (up) up.onclick = () => this.upgradeClubPlan();
-      box.querySelectorAll('.club-mem-kick').forEach(btn => {
-        btn.onclick = async () => {
-          const row = btn.closest('.club-mem'); const userId = row && row.dataset.uid;
-          if (!userId) return;
-          const ok = await TL.ui.confirm({ message: en ? 'Remove this player from the club?' : '¿Quitar a este jugador del club?', danger: true, ok: en ? 'Remove' : 'Quitar' });
-          if (!ok) return;
-          const r = await this.removeMember(userId);
-          if (r.error) { TL.app.toast(r.error); return; }
-          TL.app.toast(en ? 'Player removed' : 'Jugador quitado', true);
-          this.fillMembers();
-        };
-      });
-    },
-
-    pickToShare() {
-      const en = TL.i18n.lang === 'en';
-      const all = TL.store.loadAll().filter(tc => !tc.demo);
-      if (!all.length) { TL.app.toast(t('no_tactics_yet')); return; }
-      const h = this.host();
-      const opts = all.map(tc => `<option value="${tc.id}">${(tc.sport === 'padel' ? '🥎 ' : '🎾 ')}${esc(tc.name || t('untitled'))}</option>`).join('');
-      const ov = document.createElement('div');
-      ov.className = 'modal-scrim'; ov.id = 'ms2';
-      ov.innerHTML = `<div class="modal"><div class="modal-head"><h2>${t('club_share_tactic')}</h2><button class="x" id="mx2">${ic.x}</button></div>
-        <div class="modal-body">
-          <div class="field"><label>${t('sec_tactics')}</label><select id="share-sel">${opts}</select></div>
-          <div class="field"><label>${en ? 'Note for players (optional)' : 'Nota para jugadores (opcional)'}</label><textarea id="share-note" rows="2" placeholder="${en ? 'e.g. Practise this for Saturday' : 'p. ej. A practicar para el sábado'}"></textarea></div>
-        </div>
-        <div class="modal-foot"><button class="btn btn-ghost" id="share-cancel">${t('cancel')}</button><button class="btn btn-primary" id="share-go">${t('club_share_tactic')}</button></div></div>`;
-      document.body.appendChild(ov);
-      const done = () => ov.remove();
-      ov.querySelector('#mx2').onclick = done; ov.querySelector('#share-cancel').onclick = done;
-      ov.onclick = e => { if (e.target.id === 'ms2') done(); };
-      ov.querySelector('#share-go').onclick = async () => {
-        const tac = all.find(x => x.id === ov.querySelector('#share-sel').value);
-        const note = ov.querySelector('#share-note').value;
-        const r = await this.share(tac, note); done();
-        if (r && r.error) TL.app.toast(r.error); else { TL.app.toast(t('club_shared_ok'), true); this.fillTactics(); }
-      };
-    },
-
-    // ---- Plan Club (monetización) ----
-    // ---- Plan Club (monetización) ----
-    editIdentity() {
-      const en = TL.i18n.lang === 'en';
-      const ov = document.createElement('div');
-      ov.className = 'modal-scrim'; ov.id = 'msid';
-      ov.innerHTML = `<div class="modal">
-        <div class="modal-head"><h2>${en ? 'Edit club' : 'Editar club'}</h2><button class="x" id="mxid">${ic.x}</button></div>
-        <div class="modal-body"><div class="club-card" id="id-form">${this.identityFields(this.current)}</div></div>
-        <div class="modal-foot"><button class="btn btn-ghost" id="id-cancel">${t('cancel')}</button><button class="btn btn-primary" id="id-save">${t('save') || (en ? 'Save' : 'Guardar')}</button></div></div>`;
-      this.host().appendChild(ov);
-      const form = ov.querySelector('#id-form');
-      this.bindColors(form);
-      const done = () => ov.remove();
-      ov.querySelector('#mxid').onclick = done;
-      ov.querySelector('#id-cancel').onclick = done;
-      ov.onclick = e => { if (e.target.id === 'msid') done(); };
-      ov.querySelector('#id-save').onclick = async () => {
-        const meta = this.readIdentity(form);
-        if (!meta.name) { TL.app.toast(t('club_name_ph')); return; }
-        const r = await this.updateIdentity(meta);
-        if (r.error) { TL.app.toast(r.error); return; }
-        done(); TL.app.toast(en ? 'Club updated' : 'Club actualizado', true); this.draw();
-      };
-    },
-
-    upgradeClubPlan() {
-      const en = TL.i18n.lang === 'en';
-      const ov = document.createElement('div');
-      ov.className = 'modal-scrim'; ov.id = 'msplan';
-      const feats = en
-        ? ['Unlimited players', 'Shared tactics library', 'Assign required plays to the team', 'Coach controls & invite links']
-        : ['Jugadores ilimitados', 'Biblioteca de tácticas compartida', 'Asignar jugadas obligatorias al equipo', 'Controles de entrenador y enlaces de invitación'];
-      ov.innerHTML = `<div class="modal club-plan-modal">
-        <div class="modal-head"><h2>${en ? 'Club Plan' : 'Plan Club'}</h2><button class="x" id="mxp">${ic.x}</button></div>
-        <div class="modal-body">
-          <div class="plan-hero"><span class="plan-badge">${en ? 'CLUB' : 'CLUB'}</span>
-            <p>${en ? 'Your free club fits up to ' : 'Tu club gratis admite hasta '}<b>${FREE_PLAYERS} ${en ? 'players' : 'jugadores'}</b>. ${en ? 'Go unlimited for your whole academy.' : 'Pásate a ilimitado para toda tu academia.'}</p>
-          </div>
-          <ul class="plan-feats">${feats.map(f => `<li>${ic.check || '✓'} ${f}</li>`).join('')}</ul>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" id="plan-cancel">${t('cancel') || (en ? 'Close' : 'Cerrar')}</button>
-          <button class="btn btn-primary" id="plan-go">${en ? 'Get Club Plan' : 'Quiero el Plan Club'}</button>
-        </div></div>`;
-      this.host().appendChild(ov);
-      const done = () => ov.remove();
-      ov.querySelector('#mxp').onclick = done;
-      ov.querySelector('#plan-cancel').onclick = done;
-      ov.onclick = e => { if (e.target.id === 'msplan') done(); };
-      const go = ov.querySelector('#plan-go');
-      if (go) go.onclick = () => {
-        // dueño del club + pago real de Stripe (Plan Club, jugadores ilimitados)
-        if (this.demo || !this.current || !this.current.id) {
-          TL.app && TL.app.toast(en ? 'Available in your real club' : 'Disponible en tu club real'); return;
-        }
-        if (TL.premium && TL.premium.startCheckout) {
-          go.classList.add('is-loading');
-          TL.premium.startCheckout('club', { club_id: this.current.id });
-        }
-      };
+        }).join('')}</div>`;
     },
   };
 
-  TL.club = club;
+  league.COUNTRIES = COUNTRIES;
+  league.flag = flag;
+  league.countryName = countryName;
+  TL.league = league;
 })(window.TL = window.TL || {});

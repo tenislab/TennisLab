@@ -1,19 +1,30 @@
-{
-  "name": "CourtLab — Tácticas de tenis y pádel",
-  "short_name": "CourtLab",
-  "description": "Pizarra táctica de tenis y pádel: crea, anima y comparte jugadas.",
-  "start_url": "app.html",
-  "scope": ".",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#121110",
-  "theme_color": "#121110",
-  "categories": ["sports", "productivity"],
-  "lang": "es",
-  "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
-  ]
-}
+-- ============================================================
+-- CourtLab — trial-reminder: columnas + cron diario
+-- Ejecutar en: Supabase → SQL Editor → New query → Run
+-- ============================================================
+
+-- 1) columnas que usa la función
+alter table public.user_state add column if not exists trial_ends_at  timestamptz;
+alter table public.user_state add column if not exists trial_reminded smallint not null default 0;
+
+-- 2) extensiones para programar y hacer peticiones HTTP
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- 3) cron diario (09:00 UTC) que llama a la Edge Function trial-reminder
+--    Sustituye <PROJECT_REF> y <CRON_SECRET> por los tuyos.
+select cron.schedule(
+  'courtlab-trial-reminder',
+  '0 9 * * *',
+  $$
+  select net.http_post(
+    url     := 'https://<PROJECT_REF>.functions.supabase.co/trial-reminder',
+    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret','<CRON_SECRET>'),
+    body    := '{}'::jsonb
+  );
+  $$
+);
+
+-- Para ver / borrar el cron:
+--   select * from cron.job;
+--   select cron.unschedule('courtlab-trial-reminder');
