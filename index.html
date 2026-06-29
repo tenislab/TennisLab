@@ -1,98 +1,324 @@
-// ============================================================
-// Supabase Edge Function: trial-reminder
-// Envía un email a los usuarios cuya prueba de 7 días termina
-// pronto (día 5 y último día), para recuperar abandonos.
-// ------------------------------------------------------------
-// Cómo funciona:
-//   - Se ejecuta sola cada día (pg_cron, ver trial_reminder_cron.sql).
-//   - Busca en user_state las pruebas que vencen en ~2 días y mañana.
-//   - Envía el correo con Resend (https://resend.com — 3.000 emails/mes gratis).
-//
-// Desplegar:   supabase functions deploy trial-reminder --no-verify-jwt
-// Secrets:
-//   RESEND_API_KEY = re_...           (tu clave de Resend)
-//   RESEND_FROM    = CourtLab <hola@tudominio.com>   (remitente verificado en Resend)
-//   CRON_SECRET    = una-cadena-larga-secreta        (para que solo el cron la llame)
-//
-// Requiere en user_state una columna 'trial_ends_at timestamptz'
-// (la rellena el webhook de Stripe al iniciar la prueba). Ver
-// trial_reminder_cron.sql para crearla y programar el cron.
-// ============================================================
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
-const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'CourtLab <onboarding@resend.dev>';
-const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://tenislab.github.io/TennisLab';
-
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: RESEND_FROM, to, subject, html }),
-  });
-  return r.ok;
-}
-
-function body(daysLeft: number) {
-  const last = daysLeft <= 1;
-  return `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:460px;margin:0 auto;color:#16140f">
-    <h2 style="color:#E8703D;margin:0 0 8px">CourtLab</h2>
-    <p style="font-size:16px">${last
-      ? 'Tu prueba Premium termina <b>hoy</b>. Consérvala para seguir con tácticas ilimitadas, vídeo/GIF, informes PDF y Modo Club.'
-      : 'Te quedan <b>2 días</b> de prueba Premium. ¿Sigues con todo desbloqueado?'}</p>
-    <p style="margin:22px 0">
-      <a href="${APP_URL}/app.html" style="background:#E8703D;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:700">Abrir CourtLab</a>
-    </p>
-    <p style="font-size:12px;color:#8a857c">Si no quieres continuar, no tienes que hacer nada: la prueba se cancela sola.</p>
-  </div>`;
-}
-
-Deno.serve(async (req) => {
-  // protección: solo el cron (con el secreto) puede dispararla
-  const auth = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
-  if (CRON_SECRET && auth !== CRON_SECRET) {
-    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 });
-  }
-  try {
-    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-
-    const now = Date.now();
-    const d2 = new Date(now + 2 * 86400000), d2b = new Date(now + 3 * 86400000);   // ventana día 5 (~2 días para vencer)
-    const d1 = new Date(now), d1b = new Date(now + 1 * 86400000);                  // último día
-
-    // candidatos: prueba que vence dentro de la ventana y aún no avisados de esa fase
-    const { data: rows } = await admin.from('user_state')
-      .select('user_id, trial_ends_at, trial_reminded')
-      .not('trial_ends_at', 'is', null)
-      .eq('is_premium', false);
-
-    let sent = 0;
-    for (const row of rows || []) {
-      const ends = new Date(row.trial_ends_at).getTime();
-      let phase = 0;
-      if (ends >= d2.getTime() && ends < d2b.getTime()) phase = 5;
-      else if (ends >= d1.getTime() && ends < d1b.getTime()) phase = 7;
-      if (!phase) continue;
-      if ((row.trial_reminded || 0) >= phase) continue;  // ya avisado de esta fase
-
-      // email del usuario (desde auth)
-      const { data: u } = await admin.auth.admin.getUserById(row.user_id);
-      const email = u?.user?.email;
-      if (!email) continue;
-
-      const daysLeft = phase === 7 ? 1 : 2;
-      const ok = await sendEmail(email,
-        daysLeft <= 1 ? 'Tu prueba Premium termina hoy' : 'Te quedan 2 días de prueba Premium',
-        body(daysLeft));
-      if (ok) {
-        await admin.from('user_state').update({ trial_reminded: phase }).eq('user_id', row.user_id);
-        sent++;
-      }
+<!-- ===== Enrutado: móvil/tablet → versión simple (m.html); el 3D queda en ordenador ===== -->
+<script>
+(function(){
+  try{
+    if (location.search.indexOf('full=1') > -1) return;        // forzar 3D
+    var mm = window.matchMedia;
+    var coarse = mm && mm('(pointer:coarse)').matches;          // pantalla táctil (primario)
+    var narrow = mm && mm('(max-width:760px)').matches;         // ventana estrecha
+    var noWebGL = (function(){ try{ var c=document.createElement('canvas');
+      return !(window.WebGLRenderingContext && (c.getContext('webgl')||c.getContext('experimental-webgl'))); }
+      catch(e){ return true; } })();
+    if (coarse || narrow || noWebGL){
+      location.replace('m.html' + (location.search || ''));
     }
-    return new Response(JSON.stringify({ ok: true, sent }), { headers: { 'Content-Type': 'application/json' } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+  }catch(e){}
+})();
+</script>
+
+<!-- ===== SEO ===== -->
+<title>CourtLab — Crea y anima tus tácticas de tenis y pádel</title>
+<meta name="description" content="Pizarra táctica de tenis y pádel para jugadores, entrenadores y clubes. Crea jugadas, anímalas paso a paso, guarda rivales y partidos, y mejora tu juego. Pruébala gratis."/>
+<meta name="keywords" content="tácticas de tenis y pádel, pizarra táctica, padel, app entrenadores tenis, jugadas de tenis, scouting rival tenis, pista de tenis, estrategia tenis"/>
+<meta name="author" content="CourtLab"/>
+<meta name="robots" content="index, follow"/>
+<meta name="theme-color" content="#0F171E"/>
+<link rel="canonical" href="https://tenislab.github.io/TennisLab/"/>
+<link rel="icon" href="icon.svg" type="image/svg+xml"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-title" content="CourtLab"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+
+<!-- Open Graph / redes -->
+<meta property="og:type" content="website"/>
+<meta property="og:locale" content="es_ES"/>
+<meta property="og:site_name" content="CourtLab"/>
+<meta property="og:title" content="CourtLab — Tus tácticas de tenis y pádel, vivas"/>
+<meta property="og:description" content="Crea, anima y comparte jugadas de tenis y pádel en segundos. Para jugadores, entrenadores y clubes."/>
+<meta property="og:url" content="https://tenislab.github.io/TennisLab/"/>
+<meta property="og:image" content="https://tenislab.github.io/TennisLab/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="CourtLab — Tus tácticas de tenis y pádel, vivas"/>
+<meta name="twitter:description" content="Crea, anima y comparte jugadas de tenis y pádel en segundos."/>
+<meta name="twitter:image" content="https://tenislab.github.io/TennisLab/og-image.png"/>
+
+<!-- Datos estructurados (Google) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CourtLab",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Web",
+  "description": "Pizarra táctica de tenis y pádel para crear, animar y compartir jugadas, y gestionar rivales y partidos.",
+  "url": "https://tenislab.github.io/TennisLab/",
+  "image": "https://tenislab.github.io/TennisLab/og-image.png",
+  "inLanguage": "es",
+  "offers": [
+    {"@type":"Offer","price":"0","priceCurrency":"EUR","name":"Gratis"},
+    {"@type":"Offer","price":"2.99","priceCurrency":"EUR","name":"Premium mensual"},
+    {"@type":"Offer","price":"22.99","priceCurrency":"EUR","name":"Premium anual"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"¿Para quién es CourtLab?","acceptedAnswer":{"@type":"Answer","text":"Para jugadores que quieren preparar partidos, entrenadores que enseñan jugadas y clubes o academias que trabajan con varios jugadores."}},
+    {"@type":"Question","name":"¿Es gratis?","acceptedAnswer":{"@type":"Answer","text":"Sí, puedes empezar gratis. El plan Premium (2,99 €/mes o 22,99 €/año) desbloquea tácticas ilimitadas, exportar vídeo, informes PDF y sincronización en la nube."}},
+    {"@type":"Question","name":"¿Funciona en el móvil y la tablet?","acceptedAnswer":{"@type":"Answer","text":"Sí. Funciona en móvil, tablet y ordenador, y con una cuenta tus tácticas se sincronizan en todos tus dispositivos."}}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css?v=tour7"/>
+<link rel="stylesheet" href="tour.css?v=tour7"/>
+</head>
+<body>
+
+<!-- immersive WebGL villa (recorrido completo) -->
+<canvas id="gl" aria-hidden="true"></canvas>
+
+<!-- nav -->
+<nav class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="9" y="5" width="12" height="20" rx="1.6" fill="none" stroke="#E05A3D" stroke-width="1.8"/><line x1="9" y1="15" x2="21" y2="15" stroke="#E05A3D" stroke-width="1.8"/><line x1="15" y1="5" x2="15" y2="25" stroke="#E05A3D" stroke-width="1.2" opacity=".6"/></svg>
+      CourtLab
+    </a>
+    <div class="nav-links">
+      <a href="#desk">Scouting</a>
+      <a href="#live">Modo Club</a>
+      <a href="#pricing">Precios</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="app.html">Entrar</a>
+      <a class="btn btn-primary" href="app.html">Probar gratis</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+
+  <!-- ===== Pista de scroll: mueve la cámara por la villa (4 actos) ===== -->
+  <div class="tour-track" id="tourTrack">
+    <section class="act-spacer" id="s1" aria-hidden="true"></section>
+    <section class="act-spacer" id="desk" aria-hidden="true"></section>
+    <section class="act-spacer" id="s3" aria-hidden="true"></section>
+    <section class="act-spacer" id="live" aria-hidden="true"></section>
+  </div>
+
+  <!-- ===== Overlays de cristal (uno por acto) ===== -->
+  <div class="tour-overlays" id="tourOverlays">
+
+    <!-- ACT 1 · La pista -->
+    <section class="act act-1" aria-label="Crea y anima tus tácticas">
+      <div class="inner">
+        <div class="hero-copy">
+          <span class="kicker">Pizarra táctica · Tenis &amp; Pádel</span>
+          <h1>Tus tácticas,<br/><span class="o">vivas.</span></h1>
+          <p class="lead">Entra en la villa: diseña la jugada, estudia a tu rival y sal a ganar.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary btn-lg" href="app.html">Empezar gratis</a>
+            <a class="btn btn-ghost btn-lg" href="#desk">Ver el recorrido</a>
+          </div>
+          <div class="court-note">✓ 7 días de Premium gratis · <b>sin compromiso</b></div>
+        </div>
+      </div>
+      <div class="scroll-cue"><span class="mouse"></span>Desliza</div>
+    </section>
+
+    <!-- ACT 2 · El salón · Scouting del rival -->
+    <section class="act act-2" aria-label="Scouting del rival">
+      <div class="inner">
+        <div class="glass scout">
+          <div class="scout-head">
+            <div class="ava">LV</div>
+            <div class="who"><b>Leo Vidal</b><span>Diestro · una mano al revés</span></div>
+            <span class="h2h">H2H 3–1</span>
+          </div>
+          <div class="gauge">
+            <svg viewBox="0 0 200 112" aria-hidden="true">
+              <defs>
+                <linearGradient id="ggrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#F25D2A"/><stop offset="1" stop-color="#5ED18F"/>
+                </linearGradient>
+              </defs>
+              <path class="g-track" d="M 16 100 A 84 84 0 0 1 184 100"/>
+              <path class="g-fill" d="M 16 100 A 84 84 0 0 1 184 100"/>
+            </svg>
+            <div class="gauge-val" id="gaugeVal">52<small>%</small></div>
+            <div class="gauge-cap">a tu favor <span id="gaugeCap">en tierra</span></div>
+          </div>
+          <div class="surf">
+            <button data-s="clay" class="on"><span class="dot"></span>Tierra</button>
+            <button data-s="hard"><span class="dot"></span>Dura</button>
+            <button data-s="grass"><span class="dot"></span>Hierba</button>
+            <button data-s="indoor"><span class="dot"></span>Indoor</button>
+          </div>
+          <div class="sw">
+            <div class="s good"><span class="lab">Su arma</span><b id="rivBest">Derecha liftada</b></div>
+            <div class="s bad"><span class="lab">Su punto débil</span><b id="rivWeak">Revés alto</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACT 3 · La tele · Tu plan -->
+    <section class="act act-3" aria-label="Plan de partido">
+      <div class="inner">
+        <div class="glass plan">
+          <span class="when">Sáb 18:30 · CT Pozuelo · Tierra</span>
+          <h3>Próximo partido</h3>
+          <div class="vs"><span>Tú</span><b>VS</b><span>L. Vidal</span></div>
+          <span class="lab">Cómo jugarle</span>
+          <ul>
+            <li>Abre cada juego sacando a su revés.</li>
+            <li>Bola corta → sube a la red y cierra arriba.</li>
+            <li>Nada de peloteos largos: cambia el ritmo.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACT 4 · El balcón · Modo Club -->
+    <section class="act act-4" aria-label="Modo Club">
+      <div class="inner">
+        <div class="club-head">
+          <span class="kicker">Modo Club</span>
+          <h2>Tu club,<br/>en juego</h2>
+        </div>
+        <div class="glass clubcard">
+          <div class="cc-t"><span>Liga de tu ciudad</span><span>Pozuelo</span></div>
+          <div class="cc-row lead"><span class="rk">1</span><span class="nm">CT Pozuelo <span class="loc">· ES</span></span><b>1.240</b></div>
+          <div class="cc-row"><span class="rk">2</span><span class="nm">Padel Indoor La Finca <span class="loc">· ES</span></span><b>1.118</b></div>
+          <div class="cc-row"><span class="rk">3</span><span class="nm">RC Tenis Majadahonda <span class="loc">· ES</span></span><b>1.067</b></div>
+          <a class="btn btn-primary" href="app.html">Entrar al club</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ===== Precios · "La carta" ===== -->
+  <section class="scene s-sky" id="pricing" aria-label="Precios">
+    <div class="carta-wrap">
+      <div class="carta reveal">
+        <div class="carta-head">
+          <div class="men">La carta</div>
+          <h2>Elige tu plan</h2>
+          <p>Sin permanencia · cancela en un clic</p>
+        </div>
+        <div class="carta-rule">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="1.2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        </div>
+        <div class="carta-grid">
+          <div class="dish">
+            <h3>Gratis <span class="pr">0 €</span></h3>
+            <div class="sub">para empezar a entrenar la cabeza</div>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Hasta 3 tácticas</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Editor y animación completos</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Rivales y partidos básicos</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Exportar a imagen</li>
+            </ul>
+            <a class="btn btn-carta" href="app.html">Empezar gratis</a>
+          </div>
+          <div class="dish feat">
+            <h3>Premium <span class="pr">2,99 €<small>/mes</small></span></h3>
+            <div class="sub">7 días gratis · o 22,99 €/año (ahorras 2 meses)</div>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg><b>Tácticas ilimitadas</b></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Exportar vídeo + informes PDF</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Estadísticas avanzadas y mapas</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>Nube en todos tus dispositivos</li>
+            </ul>
+            <a class="btn btn-cartaPrimary" href="app.html">Probar 7 días gratis</a>
+          </div>
+        </div>
+        <div class="carta-foot">Tenis &amp; pádel · en tu móvil, tablet y ordenador</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Cómo va (3 pasos) ===== -->
+  <section class="blk" id="how">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="kicker" style="justify-content:center">En 3 pasos</span>
+        <h2>De la idea a la jugada animada</h2>
+        <p>En menos de un minuto, sin saber nada de tecnología.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><h3>Coloca</h3><p>Elige superficie y arrastra jugadores y bola sobre la pista de tenis o pádel.</p></div>
+        <div class="step reveal"><h3>Anima</h3><p>Dibuja la trayectoria de cada golpe y pulsa play para verla moverse de verdad.</p></div>
+        <div class="step reveal"><h3>Comparte</h3><p>Guárdala en la nube, organízala en carpetas y compártela con tu club o tus alumnos.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  <section class="blk" id="faq" style="background:linear-gradient(180deg,transparent,rgba(19,32,42,.5))">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="kicker" style="justify-content:center">Dudas</span>
+        <h2>Preguntas frecuentes</h2>
+      </div>
+      <div class="faq">
+        <details class="reveal"><summary>¿Para quién es?</summary><p>Para jugadores que preparan sus partidos, entrenadores que enseñan jugadas y clubes o academias que trabajan con varios jugadores. Tenis y pádel.</p></details>
+        <details class="reveal"><summary>¿Necesito saber de tecnología?</summary><p>No. Arrastras jugadores y bola sobre la pista, dibujas la jugada y pulsas play. Tan fácil como una pizarra, pero animada.</p></details>
+        <details class="reveal"><summary>¿Funciona en el móvil?</summary><p>Sí, en móvil, tablet y ordenador. Con una cuenta, tus tácticas se sincronizan automáticamente en todos tus dispositivos.</p></details>
+        <details class="reveal"><summary>¿Qué incluye el plan gratis?</summary><p>El editor y la animación completos, hasta 3 tácticas, rivales y partidos básicos, y exportar a imagen. Premium quita el límite y añade vídeo, PDF, mapas y nube.</p></details>
+        <details class="reveal"><summary>¿Puedo cancelar cuando quiera?</summary><p>Sí. Premium incluye 7 días de prueba gratis y puedes cancelar en cualquier momento; durante la prueba no se te cobra nada.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Final CTA ===== -->
+  <section class="blk final">
+    <div class="wrap">
+      <span class="kicker reveal" style="justify-content:center">Tu próxima victoria empieza aquí</span>
+      <h2 class="reveal">¿Listo para entrenar<br/>la <span class="o">cabeza</span>?</h2>
+      <p class="reveal">Crea tu primera táctica gratis en menos de un minuto.</p>
+      <a class="btn btn-primary btn-lg reveal" href="app.html">Empezar gratis</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-in">
+    <div>© <span id="yr"></span> CourtLab</div>
+    <div class="foot-links">
+      <a href="privacidad.html">Privacidad</a>
+      <a href="terminos.html">Términos</a>
+      <a href="/cdn-cgi/l/email-protection#ea99859a85989e8fc49e8f84848399868b88aa8d878b8386c4898587">Contacto</a>
+      <a href="app.html">Entrar a la app</a>
+    </div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/three@0.160.0/build/three.min.js" crossorigin="anonymous"></script>
+<script src="court3d.js?v=tour7"></script>
+<script src="tour.js?v=tour7"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
   }
-});
+</script>
+</body>
+</html>
